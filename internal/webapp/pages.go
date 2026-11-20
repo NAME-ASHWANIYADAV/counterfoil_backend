@@ -7,6 +7,7 @@ package webapp
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"net/http"
 	"sort"
 	"strconv"
@@ -252,12 +253,19 @@ func (s *Server) doctrinePage(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------- 404
 
 func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {
+	// The path is attacker-controlled input reflected into HTML: escape
+	// it (Go's %q escapes string syntax, not markup) and keep it short.
+	path := r.URL.Path
+	if len(path) > 80 {
+		path = path[:80] + "…"
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusNotFound)
 	fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Not on the record · Counterfoil</title>
 <link rel="stylesheet" href="/static/app.css"></head>
 <body style="background:var(--ink);color:#fff;display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center">
 <div><div class="mark wm" style="font-size:22px">COUNTER<span class="tear"></span>FOIL</div>
-<p style="color:var(--fog);max-width:40ch;margin:16px auto">There is no receipt for %q — this page is not on the record.</p>
-<p><a href="/" style="color:var(--sky)">Back to the product</a></p></div></body></html>`, r.URL.Path)
+<p style="color:var(--fog);max-width:40ch;margin:16px auto">There is no receipt for &ldquo;%s&rdquo; — this page is not on the record.</p>
+<p><a href="/" style="color:var(--sky)">Back to the product</a></p></div></body></html>`, html.EscapeString(path))
 }

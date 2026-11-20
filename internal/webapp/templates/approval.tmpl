@@ -43,6 +43,8 @@
         <div class="row" style="gap:12px;align-items:flex-end">
           <label class="f">Re-authenticate to sign (demo IdP: your PIN)
             <input type="password" name="pin" placeholder="PIN" autocomplete="off" style="width:120px">
+            <span class="note">demo PIN for {{.User.Name}}: <b class="mono">{{.User.PIN}}</b> — stands in
+            for your identity provider's re-login; the nonce it would carry is the request hash above</span>
           </label>
           <label class="f" style="flex:1">Reason (required to reject)
             <input type="text" name="reason" placeholder="optional for approve">

@@ -34,7 +34,7 @@ try{if(sessionStorage.cfb)document.documentElement.classList.remove("boot");sess
       </div>
       <div class="tearline"></div>
       <div class="personas">
-        <h2>Continue as</h2>
+        <h2>Continue as <span class="note" style="font-weight:400">— pick anyone; one click, no password</span></h2>
         {{range .Data.Users}}
         <form method="post" action="/login">
           <input type="hidden" name="user" value="{{.ID}}">

@@ -114,6 +114,8 @@
                 <input type="password" name="confirmer_pin" placeholder="their PIN" style="width:90px">
               </div>
               <button class="btn sm amber">Activate with two people</button>
+              <span class="note">demo PINs — yours ({{$.User.Name}}): <b class="mono">{{$.User.PIN}}</b>;
+                {{range $d.Users}}{{if or (eq .Role "hrops") (eq .Role "hradmin")}}{{.Name}} <b class="mono">{{.PIN}}</b> {{end}}{{end}}</span>
             </form>
             {{else}}<span class="note">—</span>{{end}}
           </td>

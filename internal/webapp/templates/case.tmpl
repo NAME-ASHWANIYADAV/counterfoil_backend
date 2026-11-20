@@ -9,7 +9,7 @@
 {{$d := .Data}}
 <div class="stack">
   <div class="card">
-    <div class="hd"><h2>One resignation, 19 steps</h2>
+    <div class="hd"><h2>One resignation, 19 steps — {{$d.StepsDone}} of {{$d.StepsAll}} done</h2>
       <span class="note">people hold the diamonds; ✓ = the other team's own system shows it done ·
       automated so far: <b>{{$d.Auto}}</b></span></div>
     {{template "tracker" $d}}

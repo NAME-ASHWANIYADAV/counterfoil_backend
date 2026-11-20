@@ -65,6 +65,13 @@
         <div class="hd"><h2>My clocks</h2><span class="note">each closes only on evidence</span></div>
         <div class="bd">{{template "clocks" $c}}</div>
       </div>
+      <div class="card">
+        <div class="hd"><h2>My documents</h2><span class="note">issued from the record; printable</span></div>
+        <div class="bd" style="display:flex;gap:8px;flex-wrap:wrap">
+          <a class="btn sm ghost" href="/settlement/{{$c.C.ID}}">Settlement statement</a>
+          <a class="btn sm ghost" href="/letter/{{$c.C.ID}}">Relieving letter</a>
+        </div>
+      </div>
       <div class="card tight">
         <div class="hd stub"><h2>My passbook</h2><span class="note">no counterfoil, no claim — these lines are receipts, not messages</span></div>
         <div class="tearline"></div>

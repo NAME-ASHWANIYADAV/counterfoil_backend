@@ -101,9 +101,19 @@ any approval step of `extensions/onboarding/package.json` and run the check agai
 
 ## 7 · The audit room
 
-Sign in as **A. Kumar** → *Audit room* → **Export + verify now**: ten checks pass against
-the exported bundle. Then prove it owes the running system nothing — in a terminal
-(network off if you like):
+Sign in as **A. Kumar** → *Audit room* → click any receipt number in the chain: the
+counterfoil opens as its own page, links back to its predecessor, and **recomputes its
+hash in front of you** — with the signer's checkpoint coverage stated. (Receipt numbers
+link like this everywhere: the passbook, the clocks board, a person's profile.)
+
+Worth showing on the way: **People** → Riya — the directory and card panels read the
+target systems' own records live, each carrying the `last_action_ref` that ties the
+disabled account and revoked card to our requests. **Clocks** shows every statutory
+deadline on the instance with what alone can close it. **How decisions are made** renders
+the reserved list and rule pack from the instance's own configuration.
+
+Then **Export + verify now**: ten checks pass against the exported bundle. Prove it owes
+the running system nothing — in a terminal (network off if you like):
 
 ```
 go run ./cmd/verify-audit -dir export

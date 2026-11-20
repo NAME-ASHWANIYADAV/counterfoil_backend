@@ -59,6 +59,14 @@ func (s *Server) routes() {
 	m.HandleFunc("POST /audit/export", s.auditExport)
 	m.HandleFunc("POST /audit/verify", s.auditVerify)
 	m.HandleFunc("GET /letter/{id}", s.letterPage)
+
+	m.HandleFunc("GET /receipts/{seq}", s.receiptPage)
+	m.HandleFunc("GET /people", s.peoplePage)
+	m.HandleFunc("GET /people/{id}", s.personPage)
+	m.HandleFunc("GET /clocks", s.clocksPage)
+	m.HandleFunc("GET /settlement/{id}", s.settlementPage)
+	m.HandleFunc("GET /doctrine", s.doctrinePage)
+	m.HandleFunc("/", s.notFound)
 }
 
 // ---------------------------------------------------------------- login
@@ -430,16 +438,18 @@ type clockVM struct {
 }
 
 type caseVM struct {
-	C        *core.Case
-	Emp      core.Employee
-	Steps    []stepVM
-	Clocks   []clockVM
-	InDoubt  []*core.InDoubtItem
-	Receipts []core.Receipt
-	Auto     string // "n of m"
-	AutoPct  string
-	Coverage map[string]int
-	FF       *kernel.FFFacts
+	C         *core.Case
+	Emp       core.Employee
+	Steps     []stepVM
+	Clocks    []clockVM
+	InDoubt   []*core.InDoubtItem
+	Receipts  []core.Receipt
+	Auto      string // "n of m"
+	AutoPct   string
+	Coverage  map[string]int
+	FF        *kernel.FFFacts
+	StepsDone int
+	StepsAll  int
 }
 
 func (s *Server) buildCaseVM(c *core.Case, forLeaver bool) caseVM {
@@ -460,7 +470,9 @@ func (s *Server) buildCaseVM(c *core.Case, forLeaver bool) caseVM {
 			sv.Actor = u.Name
 		}
 		vm.Steps = append(vm.Steps, sv)
+		vm.StepsAll++
 		if st.Status == core.StepDone || st.Status == core.StepSkipped {
+			vm.StepsDone++
 			doneAll++
 			if !st.HumanTouch {
 				doneAuto++
@@ -638,6 +650,10 @@ type dashVM struct {
 	ModelName                                                            string
 	Canaries                                                             int
 	CanariesHeld                                                         int
+	AvgClose                                                             string
+	AvgResolve                                                           string
+	Refusals                                                             int
+	Retries                                                              int
 }
 
 func (s *Server) dashboardPage(w http.ResponseWriter, r *http.Request) {
@@ -681,15 +697,49 @@ func (s *Server) dashboardPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	// Automation measured from receipts: steps done with no human touch.
+	// The impact row is measured the same way — from this instance's own
+	// receipts and timestamps, never asserted.
 	humanDone, allDone := 0, 0
 	for _, rr := range s.app.Receipts(0, "") {
-		if rr.Action == "step.status" {
+		switch rr.Action {
+		case "step.status":
 			if st, _ := rr.Data["status"].(string); st == "done" || st == "skipped" {
 				allDone++
 				if ht, _ := rr.Data["human_touch"].(bool); ht {
 					humanDone++
 				}
 			}
+		case "effect.refused":
+			v.Refusals++
+		case "effect.retried":
+			v.Retries++
+		}
+	}
+	var closeSum time.Duration
+	closeN := 0
+	for _, c := range s.app.Cases() {
+		if c.Status == core.CaseClosed && !c.ClosedAt.IsZero() {
+			closeSum += c.ClosedAt.Sub(c.OpenedAt)
+			closeN++
+		}
+	}
+	if closeN > 0 {
+		v.AvgClose = fmt.Sprintf("%.1f days over %d case(s)", (closeSum/time.Duration(closeN)).Hours()/24, closeN)
+	}
+	var resSum time.Duration
+	resN := 0
+	for _, it := range s.app.InDoubt(false) {
+		if !it.Open && !it.Resolved.IsZero() {
+			resSum += it.Resolved.Sub(it.Created)
+			resN++
+		}
+	}
+	if resN > 0 {
+		avg := resSum / time.Duration(resN)
+		if avg < time.Hour {
+			v.AvgResolve = fmt.Sprintf("%.0f min over %d item(s)", avg.Minutes(), resN)
+		} else {
+			v.AvgResolve = fmt.Sprintf("%.1f h over %d item(s)", avg.Hours(), resN)
 		}
 	}
 	_ = autoDone

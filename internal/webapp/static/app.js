@@ -52,3 +52,12 @@ document.addEventListener("click", function (e) {
     setTimeout(function () { h.textContent = t; }, 900);
   }).catch(function () {});
 });
+
+// "/" focuses the chat input, like any good tool.
+document.addEventListener("keydown", function (e) {
+  if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+  var el = document.activeElement;
+  if (el && /INPUT|TEXTAREA|SELECT/.test(el.tagName)) return;
+  var box = document.querySelector('.chat .bar input[type=text]');
+  if (box) { e.preventDefault(); box.focus(); }
+});

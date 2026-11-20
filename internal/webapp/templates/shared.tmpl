@@ -26,11 +26,13 @@ try{if(sessionStorage.cfb)document.documentElement.classList.remove("boot");sess
     {{end}}
     {{if ne .User.Role "leaver"}}
       <a href="/cases" {{if eq .Active "cases"}}class="on"{{end}}><span class="dot"></span>Cases</a>
+      <a href="/people" {{if eq .Active "people"}}class="on"{{end}}><span class="dot"></span>People</a>
+      <a href="/clocks" {{if eq .Active "clocks"}}class="on"{{end}}><span class="dot"></span>Clocks</a>
     {{end}}
     {{if or (eq .User.Role "hrops") (eq .User.Role "payroll") (eq .User.Role "hradmin") (eq .User.Role "auditor")}}
       <a href="/indoubt" {{if eq .Active "indoubt"}}class="on"{{end}}><span class="dot"></span>In doubt</a>
     {{end}}
-    {{if ne .User.Role "leaver"}}
+    {{if ne .User.Role "leaver"}}<div class="navdiv"></div>
       <a href="/dashboard" {{if eq .Active "dashboard"}}class="on"{{end}}><span class="dot"></span>Dashboard</a>
     {{end}}
     {{if or (eq .User.Role "hrops") (eq .User.Role "hradmin")}}
@@ -39,6 +41,7 @@ try{if(sessionStorage.cfb)document.documentElement.classList.remove("boot");sess
     {{if or (eq .User.Role "auditor") (eq .User.Role "hradmin") (eq .User.Role "hrops")}}
       <a href="/audit" {{if eq .Active "audit"}}class="on"{{end}}><span class="dot"></span>Audit room</a>
     {{end}}
+    <a href="/doctrine" {{if eq .Active "doctrine"}}class="on"{{end}}><span class="dot"></span>How decisions are made</a>
   </nav>
   <div class="stamp">Design-stage prototype on synthetic data and our own stand-in systems — not TBO's mocks. Done means confirmed.</div>
   <div class="foot">
@@ -121,7 +124,7 @@ try{if(sessionStorage.cfb)document.documentElement.classList.remove("boot");sess
 <tr><th style="width:52px">#</th><th style="width:120px">When</th><th>Action</th><th style="width:84px">Actor</th><th style="width:108px">Evidence</th><th style="width:150px">Hash</th></tr>
 {{range .}}
 <tr>
-  <td class="num">{{.Seq}}</td>
+  <td class="num"><a class="rlink" href="/receipts/{{.Seq}}">{{.Seq}}</a></td>
   <td class="note">{{timefmt .TS}}</td>
   <td><span class="mono">{{.Action}}</span>{{if .StepID}} <span class="note">· {{.StepID}}</span>{{end}}</td>
   <td class="note">{{.ActorType}}</td>

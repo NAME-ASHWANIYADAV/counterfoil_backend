@@ -19,17 +19,17 @@ import (
 // rewritten without the keys. Personal data stays out: free text is
 // hashed, never stored here.
 type Receipt struct {
-	Seq      int64          `json:"seq"`
-	TS       time.Time      `json:"ts"`
-	CaseID   string         `json:"case_id,omitempty"`
-	StepID   string         `json:"step_id,omitempty"`
-	Action   string         `json:"action"` // e.g. case.opened, effect.dispatched
-	ActorType string        `json:"actor_type"` // agent | human | system
-	ActorID  string         `json:"actor_id,omitempty"`
-	Evidence string         `json:"evidence,omitempty"` // evidence level, where it applies
-	Data     map[string]any `json:"data,omitempty"`     // typed, non-personal fields and hashes
-	PrevHash string         `json:"prev_hash"`
-	Hash     string         `json:"hash"`
+	Seq       int64          `json:"seq"`
+	TS        time.Time      `json:"ts"`
+	CaseID    string         `json:"case_id,omitempty"`
+	StepID    string         `json:"step_id,omitempty"`
+	Action    string         `json:"action"`     // e.g. case.opened, effect.dispatched
+	ActorType string         `json:"actor_type"` // agent | human | system
+	ActorID   string         `json:"actor_id,omitempty"`
+	Evidence  string         `json:"evidence,omitempty"` // evidence level, where it applies
+	Data      map[string]any `json:"data,omitempty"`     // typed, non-personal fields and hashes
+	PrevHash  string         `json:"prev_hash"`
+	Hash      string         `json:"hash"`
 }
 
 // Checkpoint is the signer's countersignature over the chain head.
@@ -135,6 +135,11 @@ func (c *Chain) Append(r Receipt) (Receipt, error) {
 	}
 	return r, nil
 }
+
+// ReceiptHash recomputes a receipt's own hash from its contents — the
+// receipt page uses it to show, live, that the stored hash is not a
+// decoration but a recomputable fact.
+func ReceiptHash(r Receipt) string { return receiptHash(r) }
 
 func receiptHash(r Receipt) string {
 	cp := r

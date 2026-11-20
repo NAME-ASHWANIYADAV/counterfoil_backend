@@ -42,6 +42,25 @@
       <div class="s">rules decide dates, money and approvers; the model reads through typed tools, drafts, and stages what a person confirms. Every call is receipted; 0 calls when no key is configured — nothing here pretends.</div></div>
   </div>
 
+  <div class="grid g4">
+    <div class="card stat">
+      <div class="v plain">{{if $d.AvgClose}}{{$d.AvgClose}}{{else}}—{{end}}</div>
+      <div class="k">open → closed, average</div>
+      <div class="s">{{if $d.AvgClose}}measured from case.opened to case.closed receipts{{else}}no case has closed on this instance yet{{end}}</div></div>
+    <div class="card stat">
+      <div class="v plain">{{if $d.AvgResolve}}{{$d.AvgResolve}}{{else}}—{{end}}</div>
+      <div class="k">in-doubt items: opened → resolved, average</div>
+      <div class="s">{{if $d.AvgResolve}}a person looked at the target and decided; receipted{{else}}nothing has needed resolving yet{{end}}</div></div>
+    <div class="card stat">
+      <div class="v plain {{if gt $d.Refusals 0}}bigok{{end}}">{{$d.Refusals}}</div>
+      <div class="k">dispatches refused by the gate</div>
+      <div class="s">a refusal is the product working: a changed or unwarranted request stopped before any bytes left, with a receipt</div></div>
+    <div class="card stat">
+      <div class="v plain">{{$d.Retries}}</div>
+      <div class="k">receipted retries</div>
+      <div class="s">nothing is ever resent silently — every retry is a person's decision, on the record</div></div>
+  </div>
+
   <div class="card"><div class="bd note">
     <b>How to read this page.</b> "15 of 19 per exit" is the design target from the exits
     package (2 reserved decisions + 2 human inputs). The measured figure above counts

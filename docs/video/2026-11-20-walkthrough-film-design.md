@@ -7,7 +7,8 @@ Approved 2026-11-20. This is the build contract for the ~5-minute submission vid
 - **Format:** hybrid film — animated TBO-styled bookends and chapter cards (the visual
   language of the 55s brag film) around a core of **real recorded footage of the running
   product**. Nothing in Act II is a mock-up: if it is on screen, it is the app responding.
-- **Length:** target 4:50–4:58 (limit 5:00). **File:** MP4, 1080p, ≤50 MB.
+- **Length:** target 4:50–4:58 (limit 5:00); **as built: 4:46 (285.8 s)**, the voice
+  setting the pace. **File:** MP4, 1080p, ≤50 MB.
 - **Voice:** Kokoro `af_heart` at 1.08×, one narration through the whole film.
 - **Score:** three acts from the bundled library (vol-12 opens — the brand sound of the
   55s film; a second track under the walkthrough; an uplift for the close), crossfaded at
@@ -55,19 +56,21 @@ not "MD-0002"). Target times shift to the measured WAVs at build; the voice sets
 **Chapter 3 — Named humans sign (footage)**
 12. Routine runs on agents. Decisions don't. Six reserved decisions can only be made by named people.
 13. Her manager sees a fact sheet where every line names its source — and signs exactly this, nothing else. The hash makes "exactly" literal.
-14. Payroll releases the settlement the same way. The signature mints a single-use mandate, bound to that hash, valid forty-five minutes.
 
-**Chapter 4 — The drill (footage; the climax)**
-15. Now we break it. On purpose. In front of you.
-16. We arm a drill: add one rupee to the next reserved dispatch. Approval already happened. The money is already moving.
+**Chapter 4 — The drill (footage; the climax). As built, the film follows the
+product's real order: the drill is armed first, then payroll signs, then the
+tampered dispatch is refused.**
+14. Now we break it. On purpose. In front of you.
+15. We arm a drill: add one rupee to the next reserved dispatch. Then we let the money move.
+16. Payroll releases the settlement the same way. The signature mints a single-use mandate, bound to that hash, valid forty-five minutes.
 17. The gate re-checks the hash — and refuses. It doesn't argue. It refuses, and writes down why.
-18. The case lands in-doubt. We read the target's own ledger — by our reference. Zero records. The refusal was right.
+18. The case lands in-doubt, with a named owner — and a drafted investigation that shows exactly what ran, and says in bold: a person decides. *(Retuned to the footage: the refusal fires before any send, so there is no external intent to read back — the investigation card states exactly that.)*
 19. A human orders the retry, under the same mandate rules. And this time: released. Evidence — attributed. Confirmed in their system, not ours.
 
 **Chapter 5 — Second journey, same kernel + proof (footage)**
 20. Here's what makes this a platform, not a workflow. Onboarding is not new code. It's a package — data, checked and activated by two named people.
-21. An offer flows through the same spine. Same warrants, same read-backs, same receipts. Even the week-one survey leaves a hash.
-22. And everything we just did is provable. The chain of receipts, countersigned.
+21. An offer flows through the same spine. Same warrants, same read-backs, same receipts — a second journey on one kernel.
+22. And everything we just did is provable. Every receipt recomputes its own hash, in front of you.
 23. An offline audit — ten checks, ten passes. No network. No database. A judge can re-run it.
 24. Seven canaries try to break the guards on demand. Every one is refused, and every refusal is receipted.
 

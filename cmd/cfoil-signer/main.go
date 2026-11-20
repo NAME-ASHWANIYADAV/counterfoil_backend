@@ -9,10 +9,12 @@ import (
 	"os"
 	"path/filepath"
 
+	"counterfoil/internal/core"
 	"counterfoil/internal/signersrv"
 )
 
 func main() {
+	core.LoadDotEnv(".env")
 	listen := flag.String("listen", "127.0.0.1:7071", "listen address")
 	data := flag.String("data", "data", "data directory")
 	flag.Parse()

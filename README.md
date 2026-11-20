@@ -35,6 +35,10 @@ about seven minutes. Sign-in is a demo persona picker; PINs (in
 [rules/users.json](rules/users.json)) stand in for the identity provider's re-login and
 are asked only at decisions.
 
+To enable the AI agent, copy [.env.example](.env.example) to `.env` and set
+`CFOIL_AI_API_KEY` (a Google Gemini API key). Without it the product runs whole on
+rules — and says so.
+
 Useful commands:
 
 ```
@@ -119,14 +123,45 @@ hash check and is refused with a receipt.
 
 ## Where the AI is (and is not)
 
-Rules decide dates, money, approvers and routing. A model only *reads and drafts text* —
-acknowledging the resignation, answering policy questions — and policy Q&A is served from
-the cited rule pack without any model call. With `ANTHROPIC_API_KEY` set, the intake
-acknowledgement is drafted by a model (default `claude-haiku-4-5`, override with
-`CFOIL_MODEL`); every call is metered and receipted, and the dashboard shows the spend.
-With no key, the product runs whole and says "rules (no model configured)" — nothing here
-pretends. POSH/grievance text is routed only, sealed, and never reaches a model or the
-receipts (a hash stands in).
+Rules decide dates, money, approvers and routing; named people decide the reserved
+decisions. The model's place is *reading, drafting and staging* — and with a key
+configured, that place is a real tool-calling agent, not a text box:
+
+- **The leaver's chat** is an agent with four typed tools: `get_policy` (the cited rule
+  pack), `get_my_exit_status` (the live case, steps, clocks and in-doubt items — from
+  receipts), `get_my_settlement` (the computed F&F lines, or honestly "not computed
+  yet"), and `propose_resignation` — which only *stages the confirmation card*; the
+  employee's own click is the tender, and a named approver decides acceptance. A clear
+  "I resign" is detected by rules without any model; the agent catches the long tail
+  ("it is time for me to move on…"). Every answer carries a source chip showing which
+  model ran and which tools actually executed.
+- **The in-doubt queue** has "Draft investigation summary": a bounded agent with three
+  read-only tools (`get_item_details`, `read_target_record` — a fresh read of the
+  target's own records with the dispatcher's production read-back logic — and
+  `get_case_receipts`), followed by a schema-constrained JSON recommendation. On a
+  reserved step the schema's enum is just `["retry"]` — the draft cannot even phrase a
+  forbidden resolution. The card shows what actually ran, step by step, and says in
+  bold: a named person decides; a draft resolves nothing.
+
+The provider is the **Google Gemini API** (`CFOIL_AI_API_KEY` in `.env`; see
+[.env.example](.env.example)). The models were chosen from the provider's live model
+list by *measured* capability on this product's needs — verified function calling, a
+grounded tool round-trip, schema-constrained JSON, interactive latency — not by version
+number: primary `gemini-2.5-flash`, fallback `gemini-3.5-flash-lite` on rate limits and
+5xx (both overridable via `CFOIL_AI_MODEL` / `CFOIL_AI_MODEL_FALLBACK`). The key is read
+server-side, travels only in a request header, and never appears in a URL, a log, a
+template, a receipt or this repository.
+
+The guard rails do not move for the agent: tool arguments are validated against their
+declared schema before anything runs; tools execute serially and are never invented —
+an error runs back into the loop as an error; the loop is capped; tool results shown in
+the interface are the real execution log. Every model call is metered and receipted
+(`model.call`), and the dashboard shows the spend. With no key, the product runs whole
+on rules and says so — "rules (no model configured)"; if a call fails mid-chat, rules
+answer and the chip says why. An `ANTHROPIC_API_KEY` alone still drafts the intake
+acknowledgement (default `claude-haiku-4-5` via `CFOIL_MODEL`), without the agent.
+POSH/grievance text is routed only, sealed, and never reaches a model or the receipts
+(a hash stands in).
 
 ## Status: what is real here, and what is not
 
@@ -176,7 +211,8 @@ cmd/cfoil-signer     the signer as its own binary        cmd/cfoil-mocks   the s
 cmd/verify-audit     the offline verifier
 internal/core        canonical JSON + hashing, JSONL stores, receipt chain, intent ledger
 internal/kernel      policy gate & mandates, rules & clocks, dispatcher & read-back,
-                     step engine, packages & admission check, canaries, model router
+                     step engine, packages & admission check, canaries, model router,
+                     the AI service (Gemini client, tool-calling loop, receipts)
 internal/webapp      the product surface (server-rendered; one CSS file; no JS framework)
 internal/mocksrv     TargetSys stand-ins with lie modes
 internal/signersrv   the key-holding process              internal/audit    the 10 checks

@@ -19,7 +19,8 @@ import (
 // whole — nothing pretends: surfaces say "rules" or "model" truthfully.
 type Router struct {
 	app      *App
-	apiKey   string
+	ai       *AIClient // Gemini — the primary provider (CFOIL_AI_API_KEY)
+	apiKey   string    // Anthropic — optional alternative for drafting only
 	model    string
 	endpoint string
 	client   *http.Client
@@ -28,6 +29,7 @@ type Router struct {
 func NewRouter(a *App) *Router {
 	return &Router{
 		app:      a,
+		ai:       NewAIClient(a),
 		apiKey:   os.Getenv("ANTHROPIC_API_KEY"),
 		model:    envOr("CFOIL_MODEL", "claude-haiku-4-5"),
 		endpoint: envOr("CFOIL_ANTHROPIC_URL", "https://api.anthropic.com/v1/messages"),
@@ -42,10 +44,17 @@ func envOr(k, d string) string {
 	return d
 }
 
-func (r *Router) ModelConfigured() bool { return r.apiKey != "" }
+// AI returns the agent-capable client, or nil when none is configured.
+// Surfaces check this and honestly fall back to rules.
+func (r *Router) AI() *AIClient { return r.ai }
+
+func (r *Router) ModelConfigured() bool { return r.ai != nil || r.apiKey != "" }
 
 func (r *Router) ModelName() string {
-	if r.ModelConfigured() {
+	switch {
+	case r.ai != nil:
+		return r.ai.Model()
+	case r.apiKey != "":
 		return r.model
 	}
 	return "none configured"
@@ -53,9 +62,15 @@ func (r *Router) ModelName() string {
 
 // ParseIntake extracts the resignation intent and requested date with
 // rules (regex + date formats). Typed slots never come from a model.
+// A question is never a tender: "What is my notice period?" goes to
+// Q&A (or the agent), not to the intake card.
 func (r *Router) ParseIntake(text string) (isResignation bool, requestedLWD string) {
-	lt := strings.ToLower(text)
+	lt := strings.ToLower(strings.TrimSpace(text))
 	if !containsAny(lt, []string{"resign", "quit", "leaving", "notice", "last working day", "put down my papers"}) {
+		return false, ""
+	}
+	if strings.HasSuffix(lt, "?") || containsPrefix(lt, []string{"what", "how", "when", "why", "where", "which", "who",
+		"does ", "do ", "is ", "are ", "can ", "could ", "will ", "would ", "should ", "tell me", "explain"}) {
 		return false, ""
 	}
 	for _, layout := range []string{"2006-01-02", "2 January 2006", "2 Jan 2006", "January 2, 2006", "02/01/2006"} {
@@ -69,6 +84,15 @@ func (r *Router) ParseIntake(text string) (isResignation bool, requestedLWD stri
 		return true, fdate(time.Now())
 	}
 	return true, ""
+}
+
+func containsPrefix(s string, prefixes []string) bool {
+	for _, p := range prefixes {
+		if strings.HasPrefix(s, p) {
+			return true
+		}
+	}
+	return false
 }
 
 func candidateDates(text string) []string {
@@ -93,9 +117,17 @@ func (r *Router) Acknowledge(empName, lwdDisplay string) (text, source string) {
 	if !r.ModelConfigured() {
 		return fallback, "rules (no model configured)"
 	}
-	out, err := r.anthropic("You acknowledge an employee's resignation message in two warm, plain sentences. "+
-		"Say it is acknowledged, not accepted, and that a named approver decides. Do not add dates, amounts or promises.",
-		fmt.Sprintf("Employee: %s. Requested last working day: %s.", empName, lwdDisplay))
+	system := "You acknowledge an employee's resignation message in two warm, plain sentences. " +
+		"Say it is acknowledged, not accepted, and that a named approver decides. Do not add dates, amounts or promises."
+	user := fmt.Sprintf("Employee: %s. Requested last working day: %s.", empName, lwdDisplay)
+	if r.ai != nil {
+		out, err := r.ai.GenerateText("intake acknowledgement; typed slots stay rule-computed", system, user)
+		if err != nil {
+			return fallback, "rules (model call failed: " + err.Error() + ")"
+		}
+		return out, "model: " + r.ai.Model()
+	}
+	out, err := r.anthropic(system, user)
 	if err != nil {
 		return fallback, "rules (model call failed: " + err.Error() + ")"
 	}
@@ -136,7 +168,7 @@ func (r *Router) anthropic(system, user string) (string, error) {
 	_ = r.app.emit(core.Receipt{
 		Action: "model.call", ActorType: "agent", ActorID: "router",
 		Data: map[string]any{"provider": "anthropic", "model": r.model,
-			"tokens": float64(out.Usage.InputTokens + out.Usage.OutputTokens),
+			"tokens":  float64(out.Usage.InputTokens + out.Usage.OutputTokens),
 			"purpose": "draft text only; typed slots stay rule-computed"},
 	})
 	var sb strings.Builder

@@ -206,3 +206,13 @@ form.inline{display:inline}
 .kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--hair);border-bottom-width:2px;
   border-radius:4px;padding:0 5px;background:#fff}
 .empty{padding:26px 18px;color:var(--muted);font-size:13px;text-align:center}
+
+/* ---------- model draft (in-doubt investigation) */
+.draft{margin-top:9px;border:1px solid var(--hair);border-left:3px solid var(--doubt);
+  border-radius:var(--r);padding:10px 12px;background:var(--doubt-soft);color:var(--text);font-size:12.5px}
+.draft .body{margin-top:4px}
+.draft .ran{margin-top:8px;font-weight:600;color:var(--muted);text-transform:uppercase;
+  font-size:10px;letter-spacing:.05em}
+.draft .astep{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:3px;word-break:break-word}
+.draft .astep .ok{color:var(--ok)}
+.draft .astep .bad{color:var(--fail)}

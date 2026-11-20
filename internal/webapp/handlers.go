@@ -42,6 +42,7 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /cases/{id}", s.casePage)
 	m.HandleFunc("GET /indoubt", s.indoubtPage)
 	m.HandleFunc("POST /indoubt/{id}/resolve", s.indoubtResolve)
+	m.HandleFunc("POST /indoubt/{id}/draft", s.indoubtDraft)
 
 	m.HandleFunc("GET /dashboard", s.dashboardPage)
 
@@ -107,12 +108,12 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------- chat (the leaver)
 
 type chatVM struct {
-	Emp      core.Employee
-	Msgs     []kernel.ChatMsg
-	Case     *core.Case
-	CaseVM   *caseVM
-	Pending  pendingIntake
-	Tasks    []*core.Task
+	Emp     core.Employee
+	Msgs    []kernel.ChatMsg
+	Case    *core.Case
+	CaseVM  *caseVM
+	Pending pendingIntake
+	Tasks   []*core.Task
 }
 
 type pendingIntake struct {
@@ -173,8 +174,10 @@ func (s *Server) chatSend(w http.ResponseWriter, r *http.Request) {
 	s.app.AddChat(kernel.ChatMsg{CaseID: caseID, From: u.ID, Text: text})
 	emp, _ := s.app.Employee(u.EmpID)
 
-	// Rules first: is this a resignation, and which date?
+	// Rules first: a clear resignation (regex + date formats) is intake,
+	// whatever else is configured — typed slots never come from a model.
 	isRes, lwd := s.app.Router().ParseIntake(text)
+	agentNote := ""
 	switch {
 	case isRes && !strings.HasPrefix(caseID, "PRE-"):
 		s.app.AddChat(kernel.ChatMsg{CaseID: caseID, From: "counterfoil",
@@ -189,14 +192,23 @@ func (s *Server) chatSend(w http.ResponseWriter, r *http.Request) {
 			Kind: "src:" + src})
 		setPending(u.ID, pendingIntake{Active: true, RequestedLWD: lwd})
 	default:
+		// Everything else goes to the tool-calling agent when a model is
+		// configured; it reads real case data through typed tools and can
+		// itself stage a resignation the regex missed (same confirm card,
+		// same named approver). On any failure: rules, saying so.
+		if ok, err := s.tryAgentChat(u, emp, caseID, text); ok {
+			break
+		} else if err != nil {
+			agentNote = " · agent unavailable, rules answered (" + err.Error() + ")"
+		}
 		if qa, ok := s.app.Rules().AnswerQA(text); ok {
 			s.app.AddChat(kernel.ChatMsg{CaseID: caseID, From: "counterfoil",
-				Text: qa.Answer, Kind: "cite:" + qa.Cite})
+				Text: qa.Answer, Kind: "cite:" + qa.Cite + agentNote})
 		} else {
 			s.app.AddChat(kernel.ChatMsg{CaseID: caseID, From: "counterfoil",
 				Text: "I answer policy questions from the cited rule pack, and I can take your resignation. " +
 					"Try: \"What is my notice period?\" — or tell me you wish to resign.",
-				Kind: "src:rules (no matching clause)"})
+				Kind: "src:rules (no matching clause)" + agentNote})
 		}
 	}
 	http.Redirect(w, r, "/chat", http.StatusSeeOther)
@@ -397,22 +409,22 @@ type stepVM struct {
 }
 
 type clockVM struct {
-	O         *core.Obligation
-	Trace     string
-	DaysLeft  int
+	O        *core.Obligation
+	Trace    string
+	DaysLeft int
 }
 
 type caseVM struct {
-	C         *core.Case
-	Emp       core.Employee
-	Steps     []stepVM
-	Clocks    []clockVM
-	InDoubt   []*core.InDoubtItem
-	Receipts  []core.Receipt
-	Auto      string // "n of m"
-	AutoPct   string
-	Coverage  map[string]int
-	FF        *kernel.FFFacts
+	C        *core.Case
+	Emp      core.Employee
+	Steps    []stepVM
+	Clocks   []clockVM
+	InDoubt  []*core.InDoubtItem
+	Receipts []core.Receipt
+	Auto     string // "n of m"
+	AutoPct  string
+	Coverage map[string]int
+	FF       *kernel.FFFacts
 }
 
 func (s *Server) buildCaseVM(c *core.Case, forLeaver bool) caseVM {
@@ -427,7 +439,7 @@ func (s *Server) buildCaseVM(c *core.Case, forLeaver bool) caseVM {
 		}
 		sv := stepVM{N: d.N, ID: d.ID, Title: d.Title, Kind: d.Kind, Reserved: d.Reserved,
 			Status: st.Status, Actor: st.Actor, Evidence: st.Evidence, Note: st.Note,
-			Human: d.Kind == core.StepApproval || d.Kind == core.StepHumanInput,
+			Human:   d.Kind == core.StepApproval || d.Kind == core.StepHumanInput,
 			Checked: st.Evidence == core.EvAttributed || st.Evidence == core.EvObserved}
 		if u, ok := s.app.User(st.Actor); ok {
 			sv.Actor = u.Name
@@ -537,18 +549,45 @@ func (s *Server) indoubtPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	type vm struct {
-		Open   []*core.InDoubtItem
-		Closed []*core.InDoubtItem
+		Open    []*core.InDoubtItem
+		Closed  []*core.InDoubtItem
+		Drafts  map[string]*inDoubtDraft
+		HasAI   bool
+		AIModel string
 	}
-	var v vm
+	v := vm{Drafts: map[string]*inDoubtDraft{}}
+	if ai := s.app.Router().AI(); ai != nil {
+		v.HasAI, v.AIModel = true, ai.Model()
+	}
 	for _, it := range s.app.InDoubt(false) {
 		if it.Open {
 			v.Open = append(v.Open, it)
+			if d := getDraft(it.ID); d != nil {
+				v.Drafts[it.ID] = d
+			}
 		} else {
 			v.Closed = append(v.Closed, it)
 		}
 	}
 	s.render(w, r, "indoubt", "indoubt", "In doubt", v)
+}
+
+// indoubtDraft runs the investigation agent for one item and stores the
+// draft for the page to show. Drafting is advisory: it reads, it cannot
+// resolve — the resolve form stays the only way a person acts.
+func (s *Server) indoubtDraft(w http.ResponseWriter, r *http.Request) {
+	u, ok := s.requireUser(w, r, "hrops", "payroll", "hradmin")
+	if !ok {
+		return
+	}
+	id := r.PathValue("id")
+	if it, ok := s.app.InDoubtItemByID(id); !ok || !it.Open {
+		s.setFlash(r, "no open in-doubt item "+id)
+		http.Redirect(w, r, "/indoubt", http.StatusSeeOther)
+		return
+	}
+	setDraft(id, s.draftInvestigation(u, id))
+	http.Redirect(w, r, "/indoubt", http.StatusSeeOther)
 }
 
 func (s *Server) indoubtResolve(w http.ResponseWriter, r *http.Request) {
@@ -568,22 +607,22 @@ func (s *Server) indoubtResolve(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------- dashboard
 
 type dashVM struct {
-	CasesOpen, CasesClosed int
-	Auto                   string
-	AutoNote               string
-	Coverage               map[string]int
-	CoverageNote           string
+	CasesOpen, CasesClosed                                               int
+	Auto                                                                 string
+	AutoNote                                                             string
+	Coverage                                                             map[string]int
+	CoverageNote                                                         string
 	ClocksOpen, ClocksAtRisk, ClocksClosed, ClocksBreached, ClocksOnTime int
-	InDoubtOpen            int
-	Seq                    int64
-	Head                   string
-	Cp                     core.Checkpoint
-	SignerErr              string
-	ModelCalls             int
-	ModelTokens            int64
-	ModelName              string
-	Canaries               int
-	CanariesHeld           int
+	InDoubtOpen                                                          int
+	Seq                                                                  int64
+	Head                                                                 string
+	Cp                                                                   core.Checkpoint
+	SignerErr                                                            string
+	ModelCalls                                                           int
+	ModelTokens                                                          int64
+	ModelName                                                            string
+	Canaries                                                             int
+	CanariesHeld                                                         int
 }
 
 func (s *Server) dashboardPage(w http.ResponseWriter, r *http.Request) {
@@ -797,8 +836,8 @@ func (s *Server) adminReservedAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	def := kernel.ReservedDef{ID: strings.TrimSpace(r.FormValue("id")),
-		Action: strings.TrimSpace(r.FormValue("action")),
-		Title:  strings.TrimSpace(r.FormValue("title")),
+		Action:       strings.TrimSpace(r.FormValue("action")),
+		Title:        strings.TrimSpace(r.FormValue("title")),
 		ApproverRole: r.FormValue("approver_role")}
 	if err := s.app.AddReserved(u.ID, def); err != nil {
 		s.setFlash(r, err.Error())

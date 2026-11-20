@@ -20,9 +20,19 @@ go run ./cmd/cfoil demo -reset
 
 ## 1 · Riya resigns (chat)
 
-Sign in as **Riya Sharma** → type: *What is my notice period?* (answer comes from the
-cited rule pack, no model call) → then: *I wish to resign, my last working day should be*
-**today's date**. A confirmation card appears — the click is the formal tender. Confirm.
+Sign in as **Riya Sharma** → type: *What is my notice period, and does my leave get paid
+out?* With a model configured (`.env`), the **agent** answers: the chip under the reply
+shows which model ran and that `get_policy` actually executed — twice, once per
+sub-question, each answer cited. Without a key, the rule pack answers directly and the
+chip says `rules`. Then resign — either plainly (*I wish to resign, my last working day
+should be* **today's date**; rules detect this, no model needed) or softly (*I feel it
+is time for me to move on…*; the agent catches it and stages the same card via
+`propose_resignation`). Either way a confirmation card appears — **the click is the
+formal tender**, never the model. Confirm.
+
+Worth asking afterwards: *Where does my exit stand?* (`get_my_exit_status` reads the
+live case from receipts) and *How much will my settlement be?* — the honest answer
+before computation is "not computed yet", never a guess.
 
 Watch the right panel: steps 1–5 complete in seconds (records check, disclosure screen,
 notice rule proposes the earliest date and the buyout for the shortfall, approval pack).
@@ -63,6 +73,14 @@ resignation as Riya is blocked — one open case per employee — so use the can
 or re-run after `-reset`). Quickest on stage: **Run the 7 canaries** — C6 sends a create to
 a target that always replies "201 Created" and stores nothing; the verdict must be
 *in doubt*, never Done. All seven guards are re-tested live, each run receipted.
+
+For the full beat, arm **itsm lie mode before step 2**: the asset ticket then lands in
+doubt ("replied 201 but its own records hold nothing"). As Dev, press **Draft
+investigation summary**: a bounded agent calls `get_item_details`, then
+`read_target_record` — a *fresh, real* read of the target with the production read-back
+logic — and writes a schema-constrained recommendation. The card lists what actually
+ran, step by step, and says in bold that a named person decides. Clear the lie, resolve
+**Send again**, and the step completes `attributed`.
 
 ## 5 · Kill switch and crash
 

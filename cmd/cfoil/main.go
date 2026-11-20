@@ -29,6 +29,11 @@ import (
 )
 
 func main() {
+	// Secrets and model configuration come from the environment; a .env
+	// at the repo root fills what is not already set (and never
+	// overwrites what is). Values are never printed. Child processes
+	// spawned by `demo` inherit the result.
+	core.LoadDotEnv(filepath.Join(repoRoot(), ".env"))
 	if len(os.Args) < 2 {
 		usage()
 		os.Exit(2)

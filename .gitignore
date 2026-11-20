@@ -3,3 +3,5 @@ export/
 *.exe
 *.log
 .DS_Store
+.env
+bin/

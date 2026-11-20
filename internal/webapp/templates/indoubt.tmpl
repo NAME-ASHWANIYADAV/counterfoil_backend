@@ -17,7 +17,28 @@
           <div class="note">owner: {{.OwnerRole}} · {{timefmt .Created}}</div></td>
         <td class="note">{{.Reason}}
           {{if .IntentKey}}<div>intent <span class="hash">{{short .IntentKey}}</span></div>{{end}}
-          <div style="margin-top:6px">Look at the target's own records first: <a href="http://localhost:7072/" target="_blank">open the stand-in systems ↗</a></div></td>
+          <div style="margin-top:6px">Look at the target's own records first: <a href="http://localhost:7072/" target="_blank">open the stand-in systems ↗</a></div>
+          {{if $d.HasAI}}
+          <form method="post" action="/indoubt/{{.ID}}/draft" style="margin-top:8px">
+            <button class="btn sm ghost">{{if index $d.Drafts .ID}}Draft again{{else}}Draft investigation summary{{end}} · model</button>
+          </form>
+          {{with index $d.Drafts .ID}}
+          <div class="draft">
+            {{if .Err}}
+              <div><b>Draft failed.</b> {{.Err}}</div>
+            {{else}}
+              <div><b>Model draft</b> · {{.Model}} · requested by {{.By}} · <b>a named person decides — a draft resolves nothing</b></div>
+              <div class="body">{{.Summary}}</div>
+              {{if .TargetHolds}}<div class="body">Target holds: {{.TargetHolds}}</div>{{end}}
+              <div style="margin:5px 0"><span class="pill p-waiting">suggests: {{.Rec}}</span></div>
+              <div class="body">{{.Reasoning}}</div>
+              {{if .Caution}}<div class="body">Verify by hand first: {{.Caution}}</div>{{end}}
+            {{end}}
+            <div class="ran">What actually ran:</div>
+            {{range .Steps}}<div class="astep">{{if .OK}}<span class="ok">✓</span>{{else}}<span class="bad">✗</span>{{end}} {{.Kind}} · {{.Name}}{{if .Detail}} · {{.Detail}}{{end}} · {{.Ms}} ms</div>{{end}}
+          </div>
+          {{end}}
+          {{end}}</td>
         <td>
           <form method="post" action="/indoubt/{{.ID}}/resolve" class="stack" style="gap:8px">
             <input type="text" name="note" placeholder="what you saw in the target system" required>

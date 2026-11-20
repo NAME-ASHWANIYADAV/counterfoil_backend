@@ -1,0 +1,14 @@
+# Render blueprint for the Counterfoil backend.
+# New → Blueprint on this repo configures the service automatically; for a
+# manually created service, copy the two commands into Settings instead.
+services:
+  - type: web
+    name: counterfoil-backend
+    runtime: go
+    plan: free
+    buildCommand: go build -o cfoil ./cmd/cfoil
+    startCommand: ./cfoil demo
+    healthCheckPath: /healthz
+    envVars:
+      - key: CFOIL_AI_API_KEY
+        sync: false # paste the Gemini key in the dashboard; never in the repo

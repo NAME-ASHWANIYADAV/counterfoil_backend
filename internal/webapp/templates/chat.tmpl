@@ -1,0 +1,80 @@
+{{define "chat"}}{{template "head" .}}
+<div class="topbar"><h1>Chat &amp; my exit</h1>
+  <span class="crumb">Policy answers come from the cited rule pack; your resignation is taken here and decided by a named person.</span></div>
+<main id="main" data-live="1">{{template "chat-main" .}}</main>
+{{template "foot" .}}{{end}}
+
+{{define "chat-main"}}
+{{$d := .Data}}
+<div class="chatwrap">
+  <div class="card chat">
+    <div class="log">
+      {{range $d.Msgs}}
+        <div class="msg {{if eq .From "counterfoil"}}bot{{else}}me{{end}}">
+          {{.Text}}
+          {{if .Kind}}<span class="src">{{.Kind}}</span>{{end}}
+        </div>
+      {{else}}
+        <div class="msg bot">Hello {{$d.Emp.Name}} — ask me a policy question
+        (“What is my notice period?”), or tell me you wish to resign.
+        <span class="src">src:rules · answers carry their citation</span></div>
+      {{end}}
+      {{if $d.Pending.Active}}
+      <div class="msg card">
+        <b>Please confirm — this click is the formal tender.</b>
+        <form method="post" action="/chat/confirm" style="margin-top:9px;display:flex;flex-direction:column;gap:9px">
+          <div>You are submitting your resignation.</div>
+          <label class="f">Requested last working day (the notice rule proposes the earliest date if left empty)
+            <input type="date" name="requested_lwd" value="{{$d.Pending.RequestedLWD}}">
+          </label>
+          <div style="display:flex;gap:8px">
+            <button class="btn" name="decision" value="confirm">Confirm and submit</button>
+            <button class="btn ghost" name="decision" value="cancel">Cancel</button>
+          </div>
+          <span class="note">Acknowledged is not accepted: a named approver decides, never an agent, never a timeout.</span>
+        </form>
+      </div>
+      {{end}}
+    </div>
+    <form class="bar" method="post" action="/chat/send">
+      <input type="text" name="text" placeholder="Ask about notice, final settlement, gratuity… or say you wish to resign" autocomplete="off" autofocus>
+      <button class="btn">Send</button>
+    </form>
+  </div>
+
+  <div class="stack">
+    {{if $d.CaseVM}}
+      {{$c := $d.CaseVM}}
+      <div class="card">
+        <div class="hd"><h2>My exit — {{$c.C.ID}}</h2>
+          {{if $c.C.BoundLWD}}<span class="pill p-done">last working day {{fdisplay $c.C.BoundLWD}}</span>
+          {{else}}<span class="pill p-waiting">awaiting your approver's decision</span>{{end}}
+        </div>
+        {{template "tracker" $c}}
+      </div>
+      {{range $d.Tasks}}
+      <div class="card"><div class="bd" style="display:flex;justify-content:space-between;gap:10px;align-items:center">
+        <div><b>{{.Title}}</b><div class="note">step {{.StepID}} · optional</div></div>
+        <div style="display:flex;gap:8px">
+          <form method="post" action="/tasks/{{.ID}}/done"><input type="hidden" name="back" value="/chat"><button class="btn sm">Fill now</button></form>
+          <form method="post" action="/tasks/{{.ID}}/skip"><input type="hidden" name="back" value="/chat"><button class="btn sm ghost">Decline</button></form>
+        </div>
+      </div></div>
+      {{end}}
+      <div class="card">
+        <div class="hd"><h2>My clocks</h2><span class="note">each closes only on evidence</span></div>
+        <div class="bd">{{template "clocks" $c}}</div>
+      </div>
+      <div class="card tight">
+        <div class="hd"><h2>My passbook</h2><span class="note">no counterfoil, no claim — these lines are receipts, not messages</span></div>
+        <div class="bd">{{template "receipts" $c.Receipts}}</div>
+      </div>
+    {{else}}
+      <div class="card"><div class="bd note">
+        When you submit a resignation, your case opens here: every step, every clock and a
+        passbook of receipts — nothing in it is a promise, each line is a verified record.
+      </div></div>
+    {{end}}
+  </div>
+</div>
+{{end}}

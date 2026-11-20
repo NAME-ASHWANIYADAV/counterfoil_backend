@@ -1,0 +1,41 @@
+{
+  "floor": [
+    {
+      "id": "RSV-1",
+      "action": "separation.accept",
+      "title": "Accept or reject a resignation, and fix the release date or notice buyout",
+      "approver_role": "manager"
+    },
+    {
+      "id": "RSV-2",
+      "action": "offer.extend",
+      "title": "Extend, modify or withdraw an offer; any hire or no-hire decision",
+      "approver_role": "hradmin"
+    },
+    {
+      "id": "RSV-3",
+      "action": "compensation.change",
+      "title": "Any compensation change",
+      "approver_role": "hradmin"
+    },
+    {
+      "id": "RSV-4",
+      "action": "policy.exception",
+      "title": "Any exception to stated policy (notice, leave adjustment outside policy)",
+      "approver_role": "hradmin"
+    },
+    {
+      "id": "RSV-5",
+      "action": "",
+      "title": "POSH, grievance or whistleblower matters: route only, never decide",
+      "approver_role": "icc",
+      "route_only": true
+    },
+    {
+      "id": "RSV-6",
+      "action": "payroll.release",
+      "title": "Sign off and release the full-and-final settlement",
+      "approver_role": "payroll"
+    }
+  ]
+}

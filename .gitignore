@@ -1,0 +1,5 @@
+data/
+export/
+*.exe
+*.log
+.DS_Store

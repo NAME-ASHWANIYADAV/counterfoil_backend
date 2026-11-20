@@ -1,0 +1,36 @@
+{{define "login"}}<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in · Counterfoil</title>
+<link rel="stylesheet" href="/static/app.css">
+</head><body>
+<div class="login"><div class="panel">
+  <div class="left">
+    <div class="mark">COUNTERFOIL</div>
+    <div class="tag">Named humans decide. Agents do the rest.</div>
+    <p>An agent-first HR services platform, shown on employee exits. Every HR action runs
+    under a warrant — who asked, under which rule, and for reserved steps the approver's
+    signed approval of exactly that request — and leaves a counterfoil: a receipt auditors
+    can re-check offline.</p>
+    <p>A step counts as <b style="color:#fff">done only when the other team's own system
+    shows it</b>. A reply is a claim; the record is the fact.</p>
+    <p style="font-size:12px;border-top:1px dashed rgba(255,255,255,.2);padding-top:14px">
+    Demo sign-in: pick a person. PINs stand in for the identity provider and are asked only
+    at decisions, never here. All people and data are synthetic.</p>
+  </div>
+  <div class="right">
+    <h2>Continue as</h2>
+    {{range .Data.Users}}
+    <form method="post" action="/login">
+      <input type="hidden" name="user" value="{{.ID}}">
+      <button class="persona">
+        <span class="av">{{slice .Name 0 1}}</span>
+        <span><span class="nm">{{.Name}}</span><br><span class="tt">{{.Title}}</span></span>
+        <span class="rolechip {{if or (eq .Role "manager") (eq .Role "payroll")}}amber{{end}}">{{.Role}}</span>
+      </button>
+    </form>
+    {{end}}
+  </div>
+</div></div>
+</body></html>
+{{end}}

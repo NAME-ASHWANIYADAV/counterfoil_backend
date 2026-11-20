@@ -1,0 +1,64 @@
+{
+  "version": "2026.11",
+  "dated": "2026-11-20",
+  "notice": {
+    "days": 60,
+    "buyout_allowed": true,
+    "cite": "Sample HR policy §4.2 (notice period and buyout) — synthetic policy for the demo"
+  },
+  "final_wages": {
+    "working_days": 2,
+    "cite": "Code on Wages, 2019, s.17(2): wages payable within two working days of removal, dismissal, retrenchment or resignation",
+    "needs_legal_confirmation": true
+  },
+  "gratuity": {
+    "min_years": 4.75,
+    "due_days": 30,
+    "cite": "Payment of Gratuity Act, 1972, s.4 and s.7(3): payable within thirty days",
+    "needs_legal_confirmation": true
+  },
+  "relieving_letter": {
+    "days": 7,
+    "cite": "Sample HR policy §9.1 (relieving and experience letter) — synthetic policy for the demo"
+  },
+  "leave_encashment": {
+    "cite": "Sample HR policy §6.4: earned leave encashed at gross/30 per day — synthetic policy for the demo"
+  },
+  "holidays": {
+    "2026-11-24": "Guru Nanak Jayanti (sample calendar)",
+    "2026-12-25": "Christmas Day",
+    "2027-01-26": "Republic Day"
+  },
+  "qa": [
+    {
+      "keywords": ["notice", "period", "how long"],
+      "answer": "The notice period is 60 days from the day you tender your resignation. A shorter release is possible only if the named approver agrees a notice buyout.",
+      "cite": "Sample HR policy §4.2"
+    },
+    {
+      "keywords": ["final", "settlement", "salary", "wages", "paid", "f&f", "fnf"],
+      "answer": "Final wages are due within two working days of your last working day. In Counterfoil this deadline is a clock that closes only when the payroll system's own record shows the payment.",
+      "cite": "Code on Wages, 2019, s.17(2) — flagged needs_legal_confirmation"
+    },
+    {
+      "keywords": ["gratuity"],
+      "answer": "Gratuity needs roughly five years of continuous service (the demo rule pack uses 4.75 years as the eligibility line, flagged for legal confirmation) and is payable within thirty days.",
+      "cite": "Payment of Gratuity Act, 1972, s.4 and s.7(3)"
+    },
+    {
+      "keywords": ["relieving", "letter", "experience"],
+      "answer": "Your relieving letter is issued within 7 days of your last working day; in this platform it is generated and receipted at step 17.",
+      "cite": "Sample HR policy §9.1"
+    },
+    {
+      "keywords": ["leave", "encash", "balance"],
+      "answer": "Unused earned leave is encashed in your final settlement at gross/30 per day; your balance is read from the HR record and each line of the settlement carries its citation.",
+      "cite": "Sample HR policy §6.4"
+    },
+    {
+      "keywords": ["laptop", "asset", "return"],
+      "answer": "An asset-return ticket is raised with IT on acceptance, due by your last working day. Clearance is re-checked against IT's own system on the last day, not assumed.",
+      "cite": "Exit package, steps 8 and 13"
+    }
+  ]
+}

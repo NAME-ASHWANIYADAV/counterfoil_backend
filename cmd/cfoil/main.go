@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -120,10 +121,20 @@ func serveMain(args []string) error {
 	_ = fs.Parse(args)
 	// Hosted platforms (Render, Railway, …) inject PORT and route external
 	// traffic to it; honour it unless -listen was set explicitly.
-	if *listen == "127.0.0.1:7070" {
+	listenSet := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "listen" {
+			listenSet = true
+		}
+	})
+	if !listenSet {
 		if p := os.Getenv("PORT"); p != "" {
 			*listen = "0.0.0.0:" + p
 		}
+	}
+	if h, _, err := net.SplitHostPort(*listen); err == nil &&
+		h != "127.0.0.1" && h != "localhost" && h != "::1" && h != "" {
+		log.Printf("serve: binding %s — publicly reachable. This demo signs in by persona, without passwords, over synthetic data by design; set CFOIL_SIGNER_TOKEN in any shared deployment.", *listen)
 	}
 	root := repoRoot()
 	if *dataRoot == "" {

@@ -38,6 +38,9 @@ func OpenLedger(dir string) (*Ledger, error) {
 	return l, nil
 }
 
+// Close releases the underlying file (tests and shutdown).
+func (l *Ledger) Close() error { return l.log.Close() }
+
 // IntentKey derives the ledger key for one business intent.
 func IntentKey(caseID, stepID, action string, args map[string]any) string {
 	return MustHashCanon(map[string]any{

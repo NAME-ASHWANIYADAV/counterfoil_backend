@@ -1,7 +1,6 @@
 package core
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 )
@@ -27,6 +26,7 @@ func TestChainTamperDetected(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ch.Close()
 	for i := 0; i < 5; i++ {
 		if _, err := ch.Append(Receipt{Action: "test.step", Data: map[string]any{"i": i}}); err != nil {
 			t.Fatal(err)
@@ -53,6 +53,7 @@ func TestLedgerSingleBegin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer l.Close()
 	key := IntentKey("CASE", "step", "x.create", map[string]any{"n": 1})
 	_, began1, _ := l.Begin(Intent{Key: key})
 	_, began2, _ := l.Begin(Intent{Key: key})
@@ -64,8 +65,8 @@ func TestLedgerSingleBegin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer l2.Close()
 	if _, began3, _ := l2.Begin(Intent{Key: key}); began3 {
 		t.Fatal("a restart must not re-issue the same intent")
 	}
-	_ = os.Remove(filepath.Join(dir, "intents.jsonl"))
 }

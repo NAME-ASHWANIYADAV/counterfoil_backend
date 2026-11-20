@@ -108,12 +108,19 @@ func (a *App) Evaluate(caseID string) {
 }
 
 func (a *App) depsMet(c *core.Case, p *Package, def StepDef) bool {
+	byID := map[string]StepDef{}
+	for _, s := range p.Manifest.Steps {
+		byID[s.ID] = s
+	}
 	for _, dep := range def.DependsOn {
 		ds := c.Steps[dep]
 		if ds == nil {
 			return false
 		}
-		if ds.Status == core.StepSkipped {
+		// A skipped step satisfies a dependency only when the step was
+		// optional by design (the exit survey) — a cancelled mandatory
+		// step can never unlock what depended on it.
+		if ds.Status == core.StepSkipped && byID[dep].Optional {
 			continue
 		}
 		if ds.Status != core.StepDone {
@@ -444,7 +451,9 @@ func (a *App) CompleteTask(taskID, userID string, note string) error {
 	return nil
 }
 
-// SkipTask marks an optional human input (the exit survey) declined.
+// SkipTask marks an optional human input (the exit survey) declined. The
+// same ownership rule as CompleteTask applies: only the task's own person
+// (or its role, when unassigned) may decline it.
 func (a *App) SkipTask(taskID, userID string) error {
 	a.mu.Lock()
 	t, ok := a.tasks[taskID]
@@ -454,6 +463,13 @@ func (a *App) SkipTask(taskID, userID string) error {
 	}
 	tt := *t
 	a.mu.Unlock()
+	u, _ := a.User(userID)
+	if tt.UserID != "" && tt.UserID != userID {
+		return fmt.Errorf("this task belongs to %s", a.userName(tt.UserID))
+	}
+	if tt.UserID == "" && u.Role != tt.Role {
+		return fmt.Errorf("this task belongs to the %s role", tt.Role)
+	}
 	def := a.mustStepDef(tt.CaseID, tt.StepID)
 	if !def.Optional {
 		return fmt.Errorf("this step cannot be skipped")
@@ -499,6 +515,18 @@ func (a *App) ResolveInDoubt(itemID, userID, resolution, note string) error {
 	if !ok || (u.Role != item.OwnerRole && u.Role != "hrops") {
 		return fmt.Errorf("this item belongs to the %s role", item.OwnerRole)
 	}
+	def := a.mustStepDef(item.CaseID, item.StepID)
+	// A reserved decision can never be closed or cancelled by hand from
+	// the in-doubt queue: that would be a person other than the named
+	// approver completing it. The only way forward is a re-dispatch under
+	// the mandate (or a fresh approval); the refusal itself is the guard.
+	reserved := def.Kind == core.StepApproval || def.Reserved != ""
+	if !reserved && def.Effect != nil {
+		_, reserved = a.Reserved(def.Effect.Action)
+	}
+	if reserved && resolution != "retry" {
+		return fmt.Errorf("REFUSED: step %s is reserved (%s) — it can only be re-dispatched under its mandate, never closed or cancelled by hand", def.ID, def.Reserved)
+	}
 	if err := a.emit(core.Receipt{
 		CaseID: item.CaseID, StepID: item.StepID, Action: "indoubt.resolved", ActorType: "human",
 		ActorID: userID, Data: map[string]any{"item_id": item.ID, "resolution": resolution,
@@ -506,7 +534,6 @@ func (a *App) ResolveInDoubt(itemID, userID, resolution, note string) error {
 	}); err != nil {
 		return err
 	}
-	def := a.mustStepDef(item.CaseID, item.StepID)
 	switch resolution {
 	case "confirmed_done":
 		// A person looked at the target and confirmed it. Human evidence.
@@ -775,9 +802,13 @@ func (a *App) maybeCloseCase(caseID string) {
 			continue
 		}
 		st := c.Steps[s.ID]
-		if st == nil || (st.Status != core.StepDone && st.Status != core.StepSkipped) {
+		if st == nil {
 			return
 		}
+		if st.Status == core.StepDone || (st.Status == core.StepSkipped && s.Optional) {
+			continue
+		}
+		return
 	}
 	// Leaver-closure statement, computed from receipts.
 	issued, revoked, probes := 0, 0, 0

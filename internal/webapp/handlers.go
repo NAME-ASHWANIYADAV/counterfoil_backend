@@ -340,6 +340,15 @@ func (s *Server) approvalDecide(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/approvals/"+id, http.StatusSeeOther)
 }
 
+// safeBack keeps redirects on this site: a relative path only, never a
+// protocol-relative or absolute URL supplied by the request.
+func safeBack(v string) string {
+	if strings.HasPrefix(v, "/") && !strings.HasPrefix(v, "//") && !strings.HasPrefix(v, "/\\") {
+		return v
+	}
+	return "/work"
+}
+
 func (s *Server) taskDone(w http.ResponseWriter, r *http.Request) {
 	u, ok := s.requireUser(w, r)
 	if !ok {
@@ -348,7 +357,7 @@ func (s *Server) taskDone(w http.ResponseWriter, r *http.Request) {
 	if err := s.app.CompleteTask(r.PathValue("id"), u.ID, r.FormValue("note")); err != nil {
 		s.setFlash(r, err.Error())
 	}
-	http.Redirect(w, r, r.FormValue("back"), http.StatusSeeOther)
+	http.Redirect(w, r, safeBack(r.FormValue("back")), http.StatusSeeOther)
 }
 
 func (s *Server) taskSkip(w http.ResponseWriter, r *http.Request) {
@@ -359,7 +368,7 @@ func (s *Server) taskSkip(w http.ResponseWriter, r *http.Request) {
 	if err := s.app.SkipTask(r.PathValue("id"), u.ID); err != nil {
 		s.setFlash(r, err.Error())
 	}
-	http.Redirect(w, r, r.FormValue("back"), http.StatusSeeOther)
+	http.Redirect(w, r, safeBack(r.FormValue("back")), http.StatusSeeOther)
 }
 
 // ---------------------------------------------------------------- cases
@@ -851,10 +860,31 @@ func (s *Server) doExport() error {
 			return err
 		}
 	}
+	// The signer's public key is written beside the bundle from the live
+	// signer (a channel outside the bundle), so the verifier can pin it.
+	if pub := s.fetchSignerPub(); pub != "" {
+		if err := os.WriteFile(filepath.Join(s.exportDir, "signer_pub.txt"), []byte(pub+"\n"), 0o644); err != nil {
+			return err
+		}
+	}
 	readme := "Counterfoil audit bundle.\n" +
 		"Verify offline (no network, no database):\n  go run ./cmd/verify-audit -dir export\n" +
-		"The signer's public key travels inside each checkpoint; receipts hold hashes, not personal text.\n"
+		"signer_pub.txt pins the signer's public key (fetched from the signer, not from the bundle);\n" +
+		"hand it to the auditor separately, or pass it with -pub. Receipts hold hashes, not personal text.\n"
 	return os.WriteFile(filepath.Join(s.exportDir, "README.txt"), []byte(readme), 0o644)
+}
+
+func (s *Server) fetchSignerPub() string {
+	resp, err := http.Get(s.app.Config().SignerURL + "/pub")
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+	if resp.StatusCode != 200 || len(b) < 32 {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
 }
 
 func (s *Server) auditVerify(w http.ResponseWriter, r *http.Request) {
@@ -866,7 +896,7 @@ func (s *Server) auditVerify(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/audit", http.StatusSeeOther)
 		return
 	}
-	checks, err := audit.Run(s.exportDir)
+	checks, err := audit.Run(s.exportDir, s.fetchSignerPub())
 	if err != nil {
 		s.setFlash(r, "verify failed: "+err.Error())
 	} else {
@@ -887,13 +917,20 @@ func (s *Server) auditVerify(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------- letter
 
 func (s *Server) letterPage(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.user(r); !ok {
+	u, ok := s.user(r)
+	if !ok {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
 	c, ok := s.app.Case(r.PathValue("id"))
 	if !ok {
 		http.NotFound(w, r)
+		return
+	}
+	// The letter belongs to its leaver; beyond them, only staff roles.
+	staff := map[string]bool{"hrops": true, "hradmin": true, "auditor": true}
+	if u.EmpID != c.EmployeeID && !staff[u.Role] {
+		http.Error(w, "403: this letter belongs to the employee it names", http.StatusForbidden)
 		return
 	}
 	emp, _ := s.app.Employee(c.EmployeeID)

@@ -6,6 +6,7 @@ package audit
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -19,7 +20,12 @@ type Check struct {
 	Detail string `json:"detail"`
 }
 
-func Run(dir string) ([]Check, error) {
+// Run verifies the bundle in dir. pinnedPub, when non-empty, is the
+// signer's public key obtained OUTSIDE the bundle (the -pub flag, or the
+// signer itself); with it, a bundle whose checkpoints were re-signed by a
+// different key is rejected. Without it the key inside the bundle is used
+// and the result says so plainly.
+func Run(dir string, pinnedPub string) ([]Check, error) {
 	receipts, err := core.ReadAll[core.Receipt](filepath.Join(dir, "receipts.jsonl"))
 	if err != nil {
 		return nil, err
@@ -27,6 +33,11 @@ func Run(dir string) ([]Check, error) {
 	cps, err := core.ReadAll[core.Checkpoint](filepath.Join(dir, "checkpoints.jsonl"))
 	if err != nil {
 		return nil, err
+	}
+	if pinnedPub == "" {
+		if b, err := os.ReadFile(filepath.Join(dir, "signer_pub.txt")); err == nil {
+			pinnedPub = strings.TrimSpace(string(b))
+		}
 	}
 	var out []Check
 	add := func(n int, title string, pass bool, detail string) {
@@ -39,17 +50,21 @@ func Run(dir string) ([]Check, error) {
 		err == nil, map[bool]string{true: fmt.Sprintf("%d receipts, head %s", seq, core.Short(head)),
 			false: fmt.Sprint(err)}[err == nil])
 
-	// 2. Checkpoint signatures.
+	// 2. Checkpoint signatures, against the pinned key where one is given.
 	badCp := 0
 	detail := "no checkpoints in the bundle"
 	for _, cp := range cps {
-		if err := core.VerifyCheckpoint(cp, receipts); err != nil {
+		if err := core.VerifyCheckpoint(cp, receipts, pinnedPub); err != nil {
 			badCp++
 			detail = err.Error()
 		}
 	}
 	if len(cps) > 0 && badCp == 0 {
-		detail = fmt.Sprintf("%d checkpoint signatures verify against the chain", len(cps))
+		if pinnedPub != "" {
+			detail = fmt.Sprintf("%d checkpoint signatures verify against the pinned signer key %s", len(cps), core.Short(pinnedPub))
+		} else {
+			detail = fmt.Sprintf("%d signatures verify, but with the key the bundle itself carries — pin the signer's key with -pub (or signer_pub.txt) to trust this fully", len(cps))
+		}
 	}
 	add(2, "Signer checkpoints: every countersignature verifies", len(cps) > 0 && badCp == 0, detail)
 

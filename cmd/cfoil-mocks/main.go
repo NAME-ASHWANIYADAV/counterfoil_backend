@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	listen := flag.String("listen", ":7072", "listen address")
+	listen := flag.String("listen", "127.0.0.1:7072", "listen address")
 	data := flag.String("data", "data", "data directory")
 	emps := flag.String("employees", filepath.Join("rules", "employees.json"), "seed employees")
 	flag.Parse()
@@ -22,7 +22,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "cfoil-mocks:", err)
 		os.Exit(1)
 	}
-	fmt.Printf("cfoil-mocks: http://localhost%s\n", *listen)
+	fmt.Printf("cfoil-mocks: http://%s\n", *listen)
 	if err := http.ListenAndServe(*listen, s.Handler()); err != nil {
 		fmt.Fprintln(os.Stderr, "cfoil-mocks:", err)
 		os.Exit(1)

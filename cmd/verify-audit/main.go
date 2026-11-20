@@ -14,8 +14,9 @@ import (
 
 func main() {
 	dir := flag.String("dir", "export", "bundle directory (receipts.jsonl + checkpoints.jsonl)")
+	pub := flag.String("pub", "", "pin the signer public key (hex); overrides signer_pub.txt in the bundle")
 	flag.Parse()
-	checks, err := audit.Run(*dir)
+	checks, err := audit.Run(*dir, *pub)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "verify-audit:", err)
 		os.Exit(1)

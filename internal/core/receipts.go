@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -95,6 +97,16 @@ func OpenChain(dir string, signerURL string, every int64) (*Chain, error) {
 
 func (c *Chain) Observe(fn func(Receipt)) { c.observers = append(c.observers, fn) }
 
+// Close releases the underlying files (tests and shutdown).
+func (c *Chain) Close() error {
+	err1 := c.log.Close()
+	err2 := c.cpLog.Close()
+	if err1 != nil {
+		return err1
+	}
+	return err2
+}
+
 // Append computes the chain fields, writes the receipt durably, then
 // notifies observers. It returns the completed receipt.
 func (c *Chain) Append(r Receipt) (Receipt, error) {
@@ -143,7 +155,12 @@ func (c *Chain) RequestCheckpoint() {
 		return
 	}
 	body, _ := json.Marshal(map[string]any{"upto_seq": seq, "head_hash": head})
-	resp, err := c.client.Post(c.signerURL+"/sign", "application/json", bytes.NewReader(body))
+	req, _ := http.NewRequest("POST", c.signerURL+"/sign", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	if tok := os.Getenv("CFOIL_SIGNER_TOKEN"); tok != "" {
+		req.Header.Set("Authorization", "Bearer "+tok)
+	}
+	resp, err := c.client.Do(req)
 	if err != nil {
 		c.mu.Lock()
 		c.signerErr = err.Error()
@@ -204,13 +221,20 @@ func VerifyChain(receipts []Receipt) (int64, string, error) {
 }
 
 // VerifyCheckpoint checks one countersignature against the chain.
-func VerifyCheckpoint(cp Checkpoint, receipts []Receipt) error {
+// pinnedPub, when non-empty, is the signer's public key obtained outside
+// the bundle (a flag, a config, or the signer itself): any checkpoint
+// carrying a different key is rejected, so an attacker who rewrites the
+// bundle cannot simply re-sign it with their own key.
+func VerifyCheckpoint(cp Checkpoint, receipts []Receipt, pinnedPub string) error {
 	if cp.UptoSeq < 1 || cp.UptoSeq > int64(len(receipts)) {
 		return fmt.Errorf("checkpoint seq %d outside chain", cp.UptoSeq)
 	}
 	r := receipts[cp.UptoSeq-1]
 	if r.Hash != cp.HeadHash {
 		return fmt.Errorf("checkpoint at seq %d: head hash does not match the chain", cp.UptoSeq)
+	}
+	if pinnedPub != "" && !strings.EqualFold(cp.Pub, pinnedPub) {
+		return fmt.Errorf("checkpoint at seq %d: signed with %s, not the pinned signer key %s", cp.UptoSeq, Short(cp.Pub), Short(pinnedPub))
 	}
 	pub, err := hex.DecodeString(cp.Pub)
 	if err != nil || len(pub) != ed25519.PublicKeySize {

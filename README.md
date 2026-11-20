@@ -104,7 +104,14 @@ hash check and is refused with a receipt.
 - **Audit by export.** The audit room exports the receipt bundle; `verify-audit` re-checks
   it offline: the hash chain, the signer's countersignatures, a human-issued mandate behind
   every reserved effect, a read-back or in-doubt behind every dispatch, clock closures at
-  their declared evidence, intent uniqueness, canaries and two-person activations.
+  their declared evidence, intent uniqueness, canaries and two-person activations. The
+  signer's public key is pinned outside the bundle (`signer_pub.txt`, written from the live
+  signer, or the `-pub` flag), so a re-signed bundle fails; the signer itself refuses to
+  countersign a different history for a sequence it already signed. An in-doubt item on a
+  reserved step can only be re-dispatched under its mandate — never closed or cancelled by
+  hand — and a skipped step satisfies dependencies only when it was optional by design.
+  All three processes bind to loopback by default; `CFOIL_SIGNER_TOKEN` adds a shared
+  secret on the signing endpoint.
 
 ## Where the AI is (and is not)
 

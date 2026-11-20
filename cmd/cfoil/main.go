@@ -104,7 +104,7 @@ func defaultCfg(root, dataRoot string) kernel.Config {
 
 func serveMain(args []string) error {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
-	listen := fs.String("listen", ":7070", "listen address")
+	listen := fs.String("listen", "127.0.0.1:7070", "listen address")
 	dataRoot := fs.String("data", "", "data directory (default <repo>/data)")
 	mocks := fs.String("mocks", "http://127.0.0.1:7072", "target stand-ins base URL")
 	signer := fs.String("signer", "http://127.0.0.1:7071", "signer base URL")
@@ -124,13 +124,13 @@ func serveMain(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("cfoil serve: http://localhost%s  (data %s)\n", *listen, cfg.DataDir)
+	fmt.Printf("cfoil serve: http://%s  (data %s)\n", *listen, cfg.DataDir)
 	return http.ListenAndServe(*listen, web.Handler())
 }
 
 func SignerMain(args []string) error {
 	fs := flag.NewFlagSet("signer", flag.ExitOnError)
-	listen := fs.String("listen", ":7071", "listen address")
+	listen := fs.String("listen", "127.0.0.1:7071", "listen address")
 	dataRoot := fs.String("data", "", "data directory (default <repo>/data)")
 	_ = fs.Parse(args)
 	root := repoRoot()
@@ -141,13 +141,13 @@ func SignerMain(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("cfoil-signer: http://localhost%s  (keys stay in this process)\n", *listen)
+	fmt.Printf("cfoil-signer: http://%s  (keys stay in this process)\n", *listen)
 	return http.ListenAndServe(*listen, s.Handler())
 }
 
 func MocksMain(args []string) error {
 	fs := flag.NewFlagSet("mocks", flag.ExitOnError)
-	listen := fs.String("listen", ":7072", "listen address")
+	listen := fs.String("listen", "127.0.0.1:7072", "listen address")
 	dataRoot := fs.String("data", "", "data directory (default <repo>/data)")
 	_ = fs.Parse(args)
 	root := repoRoot()
@@ -158,7 +158,7 @@ func MocksMain(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("cfoil-mocks: http://localhost%s  (the other teams' systems, stand-ins)\n", *listen)
+	fmt.Printf("cfoil-mocks: http://%s  (the other teams' systems, stand-ins)\n", *listen)
 	return http.ListenAndServe(*listen, s.Handler())
 }
 
@@ -255,8 +255,9 @@ func checkMain(args []string) error {
 func VerifyMain(args []string) error {
 	fs := flag.NewFlagSet("verify", flag.ExitOnError)
 	dir := fs.String("dir", "export", "bundle directory (receipts.jsonl + checkpoints.jsonl)")
+	pub := fs.String("pub", "", "pin the signer public key (hex); overrides signer_pub.txt")
 	_ = fs.Parse(args)
-	checks, err := audit.Run(*dir)
+	checks, err := audit.Run(*dir, *pub)
 	if err != nil {
 		return err
 	}

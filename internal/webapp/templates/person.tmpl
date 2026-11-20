@@ -62,10 +62,15 @@
           <div><a href="/cases/{{$d.Case.ID}}"><b>{{$d.Case.ID}}</b></a>
             <span class="pill {{if eq (printf "%s" $d.Case.Status) "open"}}p-running{{else}}p-done{{end}}">{{$d.Case.Status}}</span></div>
           <div class="note" style="margin-top:6px">tendered {{fdisplay $d.Case.TenderDate}}{{if $d.Case.BoundLWD}} · last working day {{fdisplay $d.Case.BoundLWD}} (bound by mandate){{end}}</div>
+          {{if or (eq .User.Role "payroll") (eq .User.Role "hrops") (eq .User.Role "hradmin") (eq .User.Role "auditor")}}
           <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
             <a class="btn sm ghost" href="/letter/{{$d.Case.ID}}">Relieving letter</a>
             <a class="btn sm ghost" href="/settlement/{{$d.Case.ID}}">Settlement statement</a>
           </div>
+          {{else}}
+          <div class="note" style="margin-top:8px">The letter and settlement open for HR back-office roles
+          and the employee themselves.</div>
+          {{end}}
         {{else}}
           <div class="note">No exit on record. An exit begins only with the employee's own tender in their chat —
           nothing here can open one on their behalf.</div>

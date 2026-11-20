@@ -57,8 +57,14 @@ func (s *Server) receiptPage(w http.ResponseWriter, r *http.Request) {
 	}
 	v := receiptVM{R: rc, Recomputed: core.ReceiptHash(rc), PrevSeq: seq - 1, NextSeq: seq + 1}
 	v.Match = v.Recomputed == rc.Hash
-	_, v.HasPrev = s.app.ReceiptBySeq(seq - 1)
-	_, v.HasNext = s.app.ReceiptBySeq(seq + 1)
+	// The pager never points at a counterfoil the viewer cannot open: a
+	// leaver walks only their own case's chain.
+	if prev, ok := s.app.ReceiptBySeq(seq - 1); ok {
+		v.HasPrev = u.Role != "leaver" || prev.CaseID == rc.CaseID
+	}
+	if next, ok := s.app.ReceiptBySeq(seq + 1); ok {
+		v.HasNext = u.Role != "leaver" || next.CaseID == rc.CaseID
+	}
 	cp, signerErr := s.app.Chain().LastCheckpoint()
 	switch {
 	case signerErr != "" && cp.UptoSeq == 0:

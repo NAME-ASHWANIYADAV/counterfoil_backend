@@ -6,7 +6,7 @@
 <div class="rcptwrap">
   <div class="card rcptdoc">
     <div class="hd stub"><h2><span class="mono">{{$d.R.Action}}</span></h2>
-      <span class="note">{{if $d.R.CaseID}}case <a href="/cases/{{$d.R.CaseID}}">{{$d.R.CaseID}}</a>{{if $d.R.StepID}} · step {{$d.R.StepID}}{{end}}{{else}}platform record{{end}}</span></div>
+      <span class="note">{{if $d.R.CaseID}}case <a href="{{if eq .User.Role "leaver"}}/myexit{{else}}/cases/{{$d.R.CaseID}}{{end}}">{{$d.R.CaseID}}</a>{{if $d.R.StepID}} · step {{$d.R.StepID}}{{end}}{{else}}platform record{{end}}</span></div>
     <div class="tearline"></div>
     <div class="bd">
       <table class="t facts">

@@ -308,6 +308,20 @@ type aboutVM struct {
 	Cases        int
 }
 
+// The footer pages are public like /about: they describe the product
+// truthfully and carry no instance data that needs a session.
+func (s *Server) securityPage(w http.ResponseWriter, r *http.Request) {
+	s.render(w, r, "security", "", "Security", nil)
+}
+
+func (s *Server) privacyPage(w http.ResponseWriter, r *http.Request) {
+	s.render(w, r, "privacy", "", "Privacy", nil)
+}
+
+func (s *Server) creditsPage(w http.ResponseWriter, r *http.Request) {
+	s.render(w, r, "credits", "", "Credits", nil)
+}
+
 func (s *Server) aboutPage(w http.ResponseWriter, r *http.Request) {
 	// Public by design: the page states what the product is and shows a
 	// handful of LIVE figures from this instance — not marketing numbers.

@@ -180,7 +180,8 @@ activation; canaries; hash-chained receipts — each one a page of its own that 
 its hash on request — a separate signer with a countersignature history, export and the
 10-check offline verifier; people pages with live target reads; real survey forms whose
 submissions are receipts; global search; printable letter and settlement documents; a
-public about page whose figures are read live from the chain; the full web product.
+public about page whose figures are read live from the chain, with footer pages for
+security, privacy and credits that describe the product truthfully; the full web product.
 
 **Deliberately simplified** — storage is append-only JSONL + replay (PostgreSQL is the
 production design); the demo IdP is a persona picker + PIN (production design: OIDC

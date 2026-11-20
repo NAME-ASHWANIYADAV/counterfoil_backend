@@ -66,6 +66,11 @@ try{if(sessionStorage.cfb)document.documentElement.classList.remove("boot");sess
 {{- end}}
 
 {{define "foot" -}}
+<footer class="appfoot">
+  <span class="wm" style="font-size:11px">COUNTER<span class="tear"></span><span class="leaf">FOIL</span></span>
+  <span class="note">demo build · synthetic data</span>
+  <nav><a href="/about">About</a><a href="/doctrine">How it decides</a><a href="/security">Security</a><a href="/privacy">Privacy</a><a href="/credits">Credits</a></nav>
+</footer>
 </div></div>
 <script src="/static/app.js"></script>
 </body></html>

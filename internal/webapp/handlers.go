@@ -75,6 +75,9 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /search", s.searchPage)
 	m.HandleFunc("GET /mandates", s.mandatesPage)
 	m.HandleFunc("GET /about", s.aboutPage)
+	m.HandleFunc("GET /security", s.securityPage)
+	m.HandleFunc("GET /privacy", s.privacyPage)
+	m.HandleFunc("GET /credits", s.creditsPage)
 	m.HandleFunc("/", s.notFound)
 }
 
@@ -1285,7 +1288,7 @@ func (s *Server) letterPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// The letter belongs to its leaver; beyond them, only staff roles.
-	staff := map[string]bool{"hrops": true, "hradmin": true, "auditor": true}
+	staff := map[string]bool{"hrops": true, "hradmin": true, "auditor": true, "payroll": true}
 	if u.EmpID != c.EmployeeID && !staff[u.Role] {
 		http.Error(w, "403: this letter belongs to the employee it names", http.StatusForbidden)
 		return

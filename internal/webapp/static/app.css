@@ -449,3 +449,21 @@ form.inline{display:inline}
   background:var(--blue-soft);border-radius:8px;padding:8px 10px}
 .meter{height:6px;background:var(--mist);border-radius:99px;overflow:hidden;min-width:110px}
 .meter span{display:block;height:100%;background:var(--blue);border-radius:99px}
+
+/* ---------- footers (TBO's blue band pattern; slim in-app row) */
+.pubfoot{background:var(--blue);color:#fff;text-align:center;padding:22px 20px 18px;position:relative;z-index:1}
+.pubfoot nav{display:flex;justify-content:center;flex-wrap:wrap}
+.pubfoot a{color:#fff;font:600 13px var(--sans);padding:2px 14px;border-right:1px solid rgba(255,255,255,.45)}
+.pubfoot a:last-child{border-right:0}
+.pubfoot a:hover{color:var(--gold);text-decoration:none}
+.pubfoot .fine{margin-top:10px;font-size:11.5px;color:rgba(255,255,255,.85);line-height:1.5}
+.appfoot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:34px;padding-top:14px;
+  border-top:1px solid var(--hair);color:var(--muted)}
+.appfoot .wm{color:var(--navy)}
+.appfoot nav{margin-left:auto;display:flex;gap:16px}
+.appfoot a{font-size:12px;color:var(--muted)}
+.appfoot a:hover{color:var(--blue-deep)}
+.pubh1{font-family:var(--brand);font-size:34px;font-weight:700;margin:6px 0 10px}
+.pubsub{color:var(--muted);font-size:15px;max-width:66ch;margin-bottom:26px}
+.ab-band h2{margin-top:30px}
+.ab-band h2:first-of-type{margin-top:0}

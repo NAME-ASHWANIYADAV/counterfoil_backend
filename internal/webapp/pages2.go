@@ -210,9 +210,10 @@ func (s *Server) searchPage(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		seqQ, _ := strconv.ParseInt(q, 10, 64)
-		rs := s.app.Receipts(0, "")
-		for i := len(rs) - 1; i >= 0 && len(v.Receipts) < 12; i-- {
-			rc := rs[i]
+		for _, rc := range s.app.Receipts(0, "") { // newest-first
+			if len(v.Receipts) >= 12 {
+				break
+			}
 			if u.Role == "manager" && !visibleCase[rc.CaseID] {
 				continue // platform receipts and other cases stay out of a manager's view
 			}

@@ -31,6 +31,7 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /chat", s.chatPage)
 	m.HandleFunc("POST /chat/send", s.chatSend)
 	m.HandleFunc("POST /chat/confirm", s.chatConfirm)
+	m.HandleFunc("GET /myexit", s.myexitPage)
 
 	m.HandleFunc("GET /work", s.workPage)
 	m.HandleFunc("GET /approvals/{id}", s.approvalPage)
@@ -139,12 +140,12 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------- chat (the leaver)
 
 type chatVM struct {
-	Emp     core.Employee
-	Msgs    []kernel.ChatMsg
-	Case    *core.Case
-	CaseVM  *caseVM
-	Pending pendingIntake
-	Tasks   []*core.Task
+	Emp       core.Employee
+	Msgs      []kernel.ChatMsg
+	Case      *core.Case
+	StepsDone int
+	StepsAll  int
+	Pending   pendingIntake
 }
 
 type pendingIntake struct {
@@ -176,16 +177,101 @@ func (s *Server) chatPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	emp, _ := s.app.Employee(u.EmpID)
-	vm := chatVM{Emp: emp, Pending: getPending(u.ID), Tasks: s.app.TasksFor("leaver", u.ID)}
+	vm := chatVM{Emp: emp, Pending: getPending(u.ID)}
 	if c, ok := s.app.CaseForEmployee(u.EmpID); ok {
 		vm.Case = c
 		vm.Msgs = s.app.ChatFor(c.ID)
-		cv := s.buildCaseVM(c, true)
-		vm.CaseVM = &cv
+		for _, st := range c.Steps {
+			vm.StepsAll++
+			if st.Status == core.StepDone || st.Status == core.StepSkipped {
+				vm.StepsDone++
+			}
+		}
 	} else {
 		vm.Msgs = s.app.ChatFor("PRE-" + u.ID)
 	}
 	s.render(w, r, "chat", "chat", "Chat", vm)
+}
+
+// ---------------------------------------------------------------- my exit (the leaver's case room)
+
+type myexitVM struct {
+	C            caseVM
+	Tasks        []*core.Task
+	ClocksClosed int
+	ClocksAll    int
+	Attributed   int
+	InDoubt      int
+	ApproverName string
+	Next         *stepVM
+	NextWho      string
+}
+
+func (s *Server) myexitPage(w http.ResponseWriter, r *http.Request) {
+	u, ok := s.requireUser(w, r, "leaver")
+	if !ok {
+		return
+	}
+	c, has := s.app.CaseForEmployee(u.EmpID)
+	if !has {
+		s.setFlash(r, "No exit case yet — your journey starts with a tender in the chat.")
+		http.Redirect(w, r, "/chat", http.StatusSeeOther)
+		return
+	}
+	v := myexitVM{C: s.buildCaseVM(c, true), Tasks: s.app.TasksFor("leaver", u.ID)}
+	for _, cl := range v.C.Clocks {
+		v.ClocksAll++
+		if cl.O.Status == core.ClockClosed {
+			v.ClocksClosed++
+		}
+	}
+	v.Attributed = v.C.Coverage["attributed"]
+	for _, it := range s.app.InDoubt(true) {
+		if it.CaseID == c.ID {
+			v.InDoubt++
+		}
+	}
+	for _, rc := range s.app.Receipts(0, c.ID) {
+		if rc.Action == "mandate.issued" {
+			if m, ok := rc.Data["mandate"].(map[string]any); ok {
+				if rid, _ := m["reserved_id"].(string); rid == "RSV-1" {
+					if ap, _ := m["approver_id"].(string); ap != "" {
+						if au, ok := s.app.User(ap); ok {
+							v.ApproverName = au.Name
+						}
+					}
+				}
+			}
+		}
+	}
+	if v.ApproverName == "" {
+		v.ApproverName = "your approver"
+	}
+	// The first step that is not finished, and who moves it — read from
+	// the step definitions, not a script.
+	for i := range v.C.Steps {
+		st := &v.C.Steps[i]
+		if st.Status == core.StepDone || st.Status == core.StepSkipped {
+			continue
+		}
+		v.Next = st
+		switch {
+		case st.Status == core.StepInDoubt:
+			v.NextWho = "The outcome could not be established — a named person in HR operations is looking at the target system's own records."
+		case st.Kind == core.StepApproval:
+			v.NextWho = "Waits on the named approver's signature — never an agent, never a timeout."
+		case st.Kind == core.StepHumanInput && st.Role == "leaver":
+			v.NextWho = "Waits on you — it is in the list below."
+		case st.Kind == core.StepHumanInput:
+			v.NextWho = "Waits on the " + st.Role + " — it is on their work queue."
+		case st.At == "lwd":
+			v.NextWho = "Runs automatically at the last-working-day cut-off, then is read back against the target's own record."
+		default:
+			v.NextWho = "Runs automatically under the warrant path, then is read back."
+		}
+		break
+	}
+	s.render(w, r, "myexit", "myexit", "My exit", v)
 }
 
 func (s *Server) chatSend(w http.ResponseWriter, r *http.Request) {
@@ -212,7 +298,7 @@ func (s *Server) chatSend(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case isRes && !strings.HasPrefix(caseID, "PRE-"):
 		s.app.AddChat(kernel.ChatMsg{CaseID: caseID, From: "counterfoil",
-			Text: "Your exit case is already open — the tracker below is live."})
+			Text: "Your exit case is already open — the tracker is on your exit page (My exit in the sidebar)."})
 	case isRes:
 		disp := "not stated (the notice rule will propose the earliest date)"
 		if lwd != "" {
@@ -278,17 +364,26 @@ func (s *Server) chatConfirm(w http.ResponseWriter, r *http.Request) {
 		s.app.AddChat(m)
 	}
 	s.app.AddChat(kernel.ChatMsg{CaseID: caseID, From: "counterfoil",
-		Text: "Submitted. Your resignation is acknowledged and the case is open — nothing is accepted until your named approver decides. You can watch every step and clock below; each line comes from a receipt."})
-	http.Redirect(w, r, "/chat", http.StatusSeeOther)
+		Text: "Submitted. Your resignation is acknowledged and the case is open — nothing is accepted until your named approver decides. Your exit page now shows every step and clock; each line comes from a receipt."})
+	http.Redirect(w, r, "/myexit", http.StatusSeeOther)
 }
 
 // ---------------------------------------------------------------- work (approvals + tasks)
+
+type decisionRow struct {
+	TS     time.Time
+	CaseID string
+	Status string
+	Reason string
+	RSV    string
+}
 
 type workVM struct {
 	Approvals []*core.Approval
 	CaseOf    map[string]*core.Case
 	EmpOf     map[string]core.Employee
 	Tasks     []*core.Task
+	Decisions []decisionRow
 }
 
 func (s *Server) workPage(w http.ResponseWriter, r *http.Request) {
@@ -306,6 +401,25 @@ func (s *Server) workPage(w http.ResponseWriter, r *http.Request) {
 				vm.EmpOf[ap.CaseID] = e
 			}
 		}
+	}
+	// Their own decisions, newest first — an approver's personal ledger.
+	// (Receipts returns newest-first.)
+	for _, rc := range s.app.Receipts(0, "") {
+		if len(vm.Decisions) >= 8 {
+			break
+		}
+		if rc.Action != "approval.decided" || rc.ActorID != u.ID {
+			continue
+		}
+		d := decisionRow{TS: rc.TS, CaseID: rc.CaseID}
+		d.Status, _ = rc.Data["status"].(string)
+		d.Reason, _ = rc.Data["reason"].(string)
+		if req, ok := rc.Data["request"].(map[string]any); ok {
+			if a, _ := req["action"].(string); a != "" {
+				d.RSV = a
+			}
+		}
+		vm.Decisions = append(vm.Decisions, d)
 	}
 	s.render(w, r, "work", "work", "Your work", vm)
 }
@@ -431,6 +545,8 @@ type stepVM struct {
 	Title    string
 	Kind     core.StepKind
 	Reserved string
+	Role     string
+	At       string
 	Status   core.StepStatus
 	Actor    string
 	Evidence string
@@ -471,6 +587,7 @@ func (s *Server) buildCaseVM(c *core.Case, forLeaver bool) caseVM {
 			st = &core.StepState{ID: d.ID, Status: core.StepPending}
 		}
 		sv := stepVM{N: d.N, ID: d.ID, Title: d.Title, Kind: d.Kind, Reserved: d.Reserved,
+			Role: d.Role, At: d.At,
 			Status: st.Status, Actor: st.Actor, Evidence: st.Evidence, Note: st.Note,
 			Human:   d.Kind == core.StepApproval || d.Kind == core.StepHumanInput,
 			Checked: st.Evidence == core.EvAttributed || st.Evidence == core.EvObserved}
@@ -541,17 +658,25 @@ func (s *Server) buildCaseVM(c *core.Case, forLeaver bool) caseVM {
 }
 
 func (s *Server) casesPage(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requireUser(w, r, "hrops", "hradmin", "auditor", "manager", "payroll"); !ok {
+	u, ok := s.requireUser(w, r, "hrops", "hradmin", "auditor", "manager", "payroll")
+	if !ok {
 		return
 	}
 	type row struct {
-		C    *core.Case
-		Emp  core.Employee
-		Auto string
-		Open int
+		C       *core.Case
+		Emp     core.Employee
+		Auto    string
+		Open    int
+		Done    int
+		All     int
+		Pct     int
+		InDoubt int
 	}
 	var rows []row
 	for _, c := range s.app.Cases() {
+		if !s.canSeeCase(u, c) {
+			continue
+		}
 		vm := s.buildCaseVM(c, false)
 		open := 0
 		for _, cl := range vm.Clocks {
@@ -559,21 +684,95 @@ func (s *Server) casesPage(w http.ResponseWriter, r *http.Request) {
 				open++
 			}
 		}
-		rows = append(rows, row{C: c, Emp: vm.Emp, Auto: vm.Auto, Open: open})
+		rw := row{C: c, Emp: vm.Emp, Auto: vm.Auto, Open: open, Done: vm.StepsDone, All: vm.StepsAll}
+		if rw.All > 0 {
+			rw.Pct = rw.Done * 100 / rw.All
+		}
+		for _, it := range s.app.InDoubt(true) {
+			if it.CaseID == c.ID {
+				rw.InDoubt++
+			}
+		}
+		rows = append(rows, row{C: rw.C, Emp: rw.Emp, Auto: rw.Auto, Open: rw.Open,
+			Done: rw.Done, All: rw.All, Pct: rw.Pct, InDoubt: rw.InDoubt})
 	}
 	s.render(w, r, "cases", "cases", "Cases", rows)
 }
 
+type participant struct {
+	Who    string
+	Name   string
+	Detail string
+	Pill   string // css pill suffix, "" = none
+}
+
 func (s *Server) casePage(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requireUser(w, r, "hrops", "hradmin", "auditor", "manager", "payroll"); !ok {
+	u, ok := s.requireUser(w, r, "hrops", "hradmin", "auditor", "manager", "payroll")
+	if !ok {
 		return
 	}
 	c, ok := s.app.Case(r.PathValue("id"))
 	if !ok {
-		http.NotFound(w, r)
+		s.notFound(w, r)
 		return
 	}
-	vm := s.buildCaseVM(c, false)
+	if !s.canSeeCase(u, c) {
+		http.Error(w, "403: a manager sees their own reports' cases", http.StatusForbidden)
+		return
+	}
+	type vmT struct {
+		caseVM
+		Participants []participant
+	}
+	vm := vmT{caseVM: s.buildCaseVM(c, false)}
+	// Who touched this case, read from the record: the leaver, their
+	// manager, and every named approver with the state of their decision.
+	vm.Participants = append(vm.Participants, participant{Who: "Leaver", Name: vm.Emp.Name,
+		Detail: vm.Emp.ID + " · " + vm.Emp.Title})
+	if mgr, ok := s.app.Employee(vm.Emp.ManagerID); ok {
+		vm.Participants = append(vm.Participants, participant{Who: "Manager", Name: mgr.Name,
+			Detail: mgr.ID + " · org chart"})
+	}
+	type apState struct{ approver, reserved, status string }
+	aps := map[string]*apState{}
+	var order []string
+	all := s.app.Receipts(0, c.ID) // newest-first; walk oldest-first
+	for i := len(all) - 1; i >= 0; i-- {
+		rc := all[i]
+		switch rc.Action {
+		case "approval.created":
+			if m, ok := rc.Data["approval"].(map[string]any); ok {
+				id, _ := m["id"].(string)
+				ap, _ := m["approver_id"].(string)
+				rsv, _ := m["reserved_id"].(string)
+				if id != "" {
+					aps[id] = &apState{approver: ap, reserved: rsv, status: "open"}
+					order = append(order, id)
+				}
+			}
+		case "approval.decided":
+			if id, _ := rc.Data["approval_id"].(string); id != "" {
+				if st, ok := aps[id]; ok {
+					st.status, _ = rc.Data["status"].(string)
+				}
+			}
+		}
+	}
+	for _, id := range order {
+		st := aps[id]
+		name := st.approver
+		if au, ok := s.app.User(st.approver); ok {
+			name = au.Name
+		}
+		pill := "waiting"
+		if st.status == "granted" {
+			pill = "done"
+		} else if st.status == "rejected" {
+			pill = "breached"
+		}
+		vm.Participants = append(vm.Participants, participant{Who: "Approver · " + st.reserved,
+			Name: name, Detail: id + " · " + st.status, Pill: pill})
+	}
 	s.render(w, r, "case", "cases", c.ID, vm)
 }
 
@@ -589,19 +788,31 @@ func (s *Server) indoubtPage(w http.ResponseWriter, r *http.Request) {
 		Drafts  map[string]*inDoubtDraft
 		HasAI   bool
 		AIModel string
+		Oldest  string
 	}
 	v := vm{Drafts: map[string]*inDoubtDraft{}}
 	if ai := s.app.Router().AI(); ai != nil {
 		v.HasAI, v.AIModel = true, ai.Model()
 	}
+	var oldest time.Time
 	for _, it := range s.app.InDoubt(false) {
 		if it.Open {
 			v.Open = append(v.Open, it)
 			if d := getDraft(it.ID); d != nil {
 				v.Drafts[it.ID] = d
 			}
+			if oldest.IsZero() || it.Created.Before(oldest) {
+				oldest = it.Created
+			}
 		} else {
 			v.Closed = append(v.Closed, it)
+		}
+	}
+	if !oldest.IsZero() {
+		if age := time.Since(oldest); age < time.Hour {
+			v.Oldest = fmt.Sprintf("%.0f min", age.Minutes())
+		} else {
+			v.Oldest = fmt.Sprintf("%.1f h", time.Since(oldest).Hours())
 		}
 	}
 	s.render(w, r, "indoubt", "indoubt", "In doubt", v)
@@ -662,6 +873,7 @@ type dashVM struct {
 	AvgResolve                                                           string
 	Refusals                                                             int
 	Retries                                                              int
+	Feed                                                                 []core.Receipt
 }
 
 func (s *Server) dashboardPage(w http.ResponseWriter, r *http.Request) {
@@ -772,6 +984,7 @@ func (s *Server) dashboardPage(w http.ResponseWriter, r *http.Request) {
 	v.Cp, v.SignerErr = s.app.Chain().LastCheckpoint()
 	v.ModelCalls, v.ModelTokens = s.app.ModelSpend()
 	v.ModelName = s.app.Router().ModelName()
+	v.Feed = s.app.Receipts(8, "")
 	for _, c := range s.app.CanaryResults() {
 		v.Canaries++
 		if held, _ := c["held"].(bool); held {

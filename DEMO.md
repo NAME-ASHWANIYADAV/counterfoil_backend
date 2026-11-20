@@ -34,7 +34,7 @@ Worth asking afterwards: *Where does my exit stand?* (`get_my_exit_status` reads
 live case from receipts) and *How much will my settlement be?* — the honest answer
 before computation is "not computed yet", never a guess.
 
-Watch the right panel: steps 1–5 complete in seconds (records check, disclosure screen,
+Open **My exit** in the sidebar: steps 1–5 complete in seconds (records check, disclosure screen,
 notice rule proposes the earliest date and the buyout for the shortfall, approval pack).
 Step 6 waits on an amber diamond: **nothing is accepted by an agent, ever**.
 

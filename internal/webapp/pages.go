@@ -79,10 +79,11 @@ func (s *Server) receiptPage(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------- people
 
 type personRow struct {
-	E        core.Employee
-	Case     *core.Case
-	CaseDone int
-	CaseAll  int
+	E           core.Employee
+	ManagerName string
+	Case        *core.Case
+	CaseDone    int
+	CaseAll     int
 }
 
 func (s *Server) peoplePage(w http.ResponseWriter, r *http.Request) {
@@ -96,6 +97,9 @@ func (s *Server) peoplePage(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		row := personRow{E: e}
+		if m, ok := s.app.Employee(e.ManagerID); ok {
+			row.ManagerName = m.Name
+		}
 		if c, ok := s.app.CaseForEmployee(e.ID); ok {
 			row.Case = c
 			for _, st := range c.Steps {
@@ -173,10 +177,13 @@ func (s *Server) personPage(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------- clocks board
 
 type clocksVM struct {
-	Active []*core.Obligation
-	Closed []*core.Obligation
-	CaseOf map[string]*core.Case
-	EmpOf  map[string]core.Employee
+	Active  []*core.Obligation
+	Closed  []*core.Obligation
+	CaseOf  map[string]*core.Case
+	EmpOf   map[string]core.Employee
+	AtRisk  int
+	Soonest string // "Wed 25 Nov 2026 (5d)" or ""
+	OnTime  int
 }
 
 func (s *Server) clocksPage(w http.ResponseWriter, r *http.Request) {
@@ -200,6 +207,19 @@ func (s *Server) clocksPage(w http.ResponseWriter, r *http.Request) {
 	}
 	sort.Slice(v.Active, func(i, j int) bool { return v.Active[i].DueDate < v.Active[j].DueDate })
 	sort.Slice(v.Closed, func(i, j int) bool { return v.Closed[i].ClosedAt.After(v.Closed[j].ClosedAt) })
+	for _, ob := range v.Active {
+		if ob.Status == core.ClockAtRisk || ob.Status == core.ClockBreached {
+			v.AtRisk++
+		}
+	}
+	for _, ob := range v.Closed {
+		if !ob.ClosedAt.IsZero() && ob.ClosedAt.Format("2006-01-02") <= ob.DueDate {
+			v.OnTime++
+		}
+	}
+	if len(v.Active) > 0 {
+		v.Soonest = kernel.FDisplay(v.Active[0].DueDate)
+	}
 	s.render(w, r, "clocksboard", "clocks", "Clocks", v)
 }
 

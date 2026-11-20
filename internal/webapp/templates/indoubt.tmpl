@@ -7,6 +7,12 @@
 {{define "indoubt-main"}}
 {{$d := .Data}}
 <div class="stack">
+  <div class="statstrip">
+    <div class="sitem {{if $d.Open}}warn{{end}}"><div class="v">{{len $d.Open}}</div><div class="k">open — each with a named owner</div></div>
+    <div class="sitem"><div class="v">{{if $d.Oldest}}{{$d.Oldest}}{{else}}—{{end}}</div><div class="k">oldest open item's age</div></div>
+    <div class="sitem"><div class="v">{{len $d.Closed}}</div><div class="k">resolved, receipted</div></div>
+    <div class="sitem wide"><div class="v" style="font-size:15px">never retried blindly</div><div class="k">a contradiction goes to a person; only a person orders a re-dispatch</div></div>
+  </div>
   <div class="card tight">
     <div class="hd"><h2>Open items</h2></div>
     <table class="t">

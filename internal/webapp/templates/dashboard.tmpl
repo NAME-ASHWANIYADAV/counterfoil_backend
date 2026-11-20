@@ -61,6 +61,12 @@
       <div class="s">nothing is ever resent silently — every retry is a person's decision, on the record</div></div>
   </div>
 
+  <div class="card tight">
+    <div class="hd stub"><h2>Latest activity</h2><span class="note">the newest counterfoils on the chain — every number links to its receipt</span></div>
+    <div class="tearline"></div>
+    <div class="bd">{{template "receipts" $d.Feed}}</div>
+  </div>
+
   <div class="card"><div class="bd note">
     <b>How to read this page.</b> "15 of 19 per exit" is the design target from the exits
     package (2 reserved decisions + 2 human inputs). The measured figure above counts

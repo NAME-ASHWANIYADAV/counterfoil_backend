@@ -8,6 +8,12 @@
 {{define "clocksboard-main"}}
 {{$d := .Data}}
 <div class="stack">
+  <div class="statstrip">
+    <div class="sitem"><div class="v">{{len $d.Active}}</div><div class="k">running</div></div>
+    <div class="sitem {{if $d.AtRisk}}warn{{end}}"><div class="v">{{$d.AtRisk}}</div><div class="k">at risk or breached</div></div>
+    <div class="sitem"><div class="v">{{len $d.Closed}}</div><div class="k">closed on evidence{{if $d.OnTime}} ({{$d.OnTime}} on time){{end}}</div></div>
+    <div class="sitem wide"><div class="v" style="font-size:15px">{{if $d.Soonest}}{{$d.Soonest}}{{else}}—{{end}}</div><div class="k">next statutory due date on this instance</div></div>
+  </div>
   <div class="card tight">
     <div class="hd"><h2>Running</h2><span class="note">{{len $d.Active}} open · soonest first</span></div>
     <table class="t">

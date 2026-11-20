@@ -52,5 +52,21 @@
       {{end}}
     </table>
   </div>
+
+  {{if $d.Decisions}}
+  <div class="card tight">
+    <div class="hd"><h2>Your decisions</h2><span class="note">your personal ledger — every signature you have given, from receipts</span></div>
+    <table class="t">
+      <tr><th style="width:150px">When</th><th>Request</th><th style="width:120px">Case</th><th style="width:110px">Decision</th><th>Reason</th></tr>
+      {{range $d.Decisions}}
+      <tr><td class="note">{{timefmt .TS}}</td>
+        <td><span class="mono" style="font-size:11.5px">{{.RSV}}</span></td>
+        <td><a href="/cases/{{.CaseID}}">{{.CaseID}}</a></td>
+        <td>{{if eq .Status "granted"}}<span class="pill p-done">granted</span>{{else}}<span class="pill p-breached">rejected</span>{{end}}</td>
+        <td class="note">{{if .Reason}}{{.Reason}}{{else}}—{{end}}</td></tr>
+      {{end}}
+    </table>
+  </div>
+  {{end}}
 </div>
 {{end}}

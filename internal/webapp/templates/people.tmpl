@@ -14,7 +14,7 @@
       <td><span class="hash">{{.E.ID}}</span></td>
       <td>{{.E.Title}}</td>
       <td class="note">{{.E.Location}}</td>
-      <td class="note">{{.E.ManagerID}}</td>
+      <td class="note">{{if .ManagerName}}{{.ManagerName}}{{else}}—{{end}}</td>
       <td class="num">{{printf "%.1f" .E.LeaveBalanceDays}}</td>
       <td>{{if .Case}}
         <a href="/cases/{{.Case.ID}}"><span class="pill {{if eq (printf "%s" .Case.Status) "open"}}p-running{{else}}p-done{{end}}">{{.Case.ID}} · {{.CaseDone}}/{{.CaseAll}} steps</span></a>

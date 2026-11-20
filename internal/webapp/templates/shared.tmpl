@@ -19,7 +19,8 @@ try{if(sessionStorage.cfb)document.documentElement.classList.remove("boot");sess
   </div>
   <nav class="nav">
     {{if eq .User.Role "leaver"}}
-      <a href="/chat" {{if eq .Active "chat"}}class="on"{{end}}><span class="dot"></span>Chat &amp; my exit</a>
+      <a href="/chat" {{if eq .Active "chat"}}class="on"{{end}}><span class="dot"></span>Chat</a>
+      <a href="/myexit" {{if eq .Active "myexit"}}class="on"{{end}}><span class="dot"></span>My exit</a>
     {{end}}
     {{if or (eq .User.Role "manager") (eq .User.Role "payroll")}}
       <a href="/work" {{if eq .Active "work"}}class="on"{{end}}><span class="dot"></span>Your work</a>

@@ -17,6 +17,18 @@
     {{template "steptable" $d}}
   </div>
 
+  <div class="card tight">
+    <div class="hd"><h2>Who is on this case</h2><span class="note">read from the record: the leaver, the org chart, and every named signature</span></div>
+    <table class="t">
+      <tr><th style="width:170px">Part</th><th style="width:240px">Name</th><th>Detail</th></tr>
+      {{range $d.Participants}}
+      <tr><td class="note">{{.Who}}</td>
+        <td><b>{{.Name}}</b>{{if .Pill}} <span class="pill p-{{.Pill}}">{{.Pill}}</span>{{end}}</td>
+        <td class="note">{{.Detail}}</td></tr>
+      {{end}}
+    </table>
+  </div>
+
   {{if $d.InDoubt}}
   <div class="card">
     <div class="hd"><h2>In doubt on this case</h2><span class="note">never a guess: a named person decides</span></div>

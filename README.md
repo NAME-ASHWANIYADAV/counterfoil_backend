@@ -234,7 +234,12 @@ Team **Init to Win It** — Sonal Verma (lead), Ashwani Yadav, Arpita, Vaibhav G
 Lakshay Bansal. Built with Go's standard library only. AI tools: Claude (Claude Code) was
 used for research, drafting and writing this prototype's code under the team's direction;
 see the Round 1 architecture brief for the full disclosure. License: to be chosen by the
-team before publishing; no third-party code is vendored. The one vendored asset is the
-IBM Plex type family (Sans, Mono, Serif — SIL Open Font License 1.1, license text at
-[internal/webapp/static/fonts/LICENSE.txt](internal/webapp/static/fonts/LICENSE.txt)),
-which the product self-hosts; no font, script or style is ever loaded from a CDN.
+team before publishing; no third-party code is vendored. The only vendored assets are
+fonts, all SIL OFL 1.1 and self-hosted (Montserrat, Open Sans, IBM Plex Mono and Serif —
+license text at
+[internal/webapp/static/fonts/LICENSE.txt](internal/webapp/static/fonts/LICENSE.txt));
+no font, script or style is ever loaded from a CDN. The interface follows TBO's own
+public design language, measured from tbo.com and the TBOHolidays portal (their declared
+Montserrat + #307FE2/#F36B21 brand tokens; the portal's Open Sans, navy #014693 chrome,
+gold accents, card and input geometry) so the product reads as a native TBO back-office
+tool; no TBO logo or mark is used.

@@ -284,8 +284,8 @@ func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Not on the record · Counterfoil</title>
 <link rel="stylesheet" href="/static/app.css"></head>
-<body style="background:var(--ink);color:#fff;display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center">
-<div><div class="mark wm" style="font-size:22px">COUNTER<span class="tear"></span>FOIL</div>
+<body style="background:var(--navy);color:#fff;display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center">
+<div><div class="mark wm" style="font-size:22px">COUNTER<span class="tear"></span><span class="leaf">FOIL</span></div>
 <p style="color:var(--fog);max-width:40ch;margin:16px auto">There is no receipt for &ldquo;%s&rdquo; — this page is not on the record.</p>
 <p><a href="/" style="color:var(--sky)">Back to the product</a></p></div></body></html>`, html.EscapeString(path))
 }

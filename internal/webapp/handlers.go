@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -340,13 +341,21 @@ func (s *Server) approvalDecide(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/approvals/"+id, http.StatusSeeOther)
 }
 
-// safeBack keeps redirects on this site: a relative path only, never a
-// protocol-relative or absolute URL supplied by the request.
+// safeBack keeps redirects on this site: a same-site relative path only —
+// parsed, no scheme, no host, a single leading slash, and no backslash or
+// control character anywhere.
 func safeBack(v string) string {
-	if strings.HasPrefix(v, "/") && !strings.HasPrefix(v, "//") && !strings.HasPrefix(v, "/\\") {
-		return v
+	for _, r := range v {
+		if r < 0x20 || r == 0x7f || r == '\\' {
+			return "/work"
+		}
 	}
-	return "/work"
+	u, err := url.Parse(v)
+	if err != nil || u.Scheme != "" || u.Host != "" || u.User != nil ||
+		!strings.HasPrefix(u.Path, "/") || strings.HasPrefix(u.Path, "//") {
+		return "/work"
+	}
+	return v
 }
 
 func (s *Server) taskDone(w http.ResponseWriter, r *http.Request) {
@@ -896,7 +905,8 @@ func (s *Server) auditVerify(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/audit", http.StatusSeeOther)
 		return
 	}
-	checks, err := audit.Run(s.exportDir, s.fetchSignerPub())
+	livePub := s.fetchSignerPub()
+	checks, err := audit.Run(s.exportDir, livePub)
 	if err != nil {
 		s.setFlash(r, "verify failed: "+err.Error())
 	} else {
@@ -906,7 +916,11 @@ func (s *Server) auditVerify(w http.ResponseWriter, r *http.Request) {
 				pass++
 			}
 		}
-		s.setFlash(r, fmt.Sprintf("Offline verifier: %d of %d checks pass on the exported bundle (same code as cmd/verify-audit).", pass, len(checks)))
+		pin := "signer key pinned from the live signer"
+		if livePub == "" {
+			pin = "live signer unreachable, so signatures were checked UNPINNED"
+		}
+		s.setFlash(r, fmt.Sprintf("Offline verifier: %d of %d checks pass on the exported bundle (%s; same code as cmd/verify-audit).", pass, len(checks), pin))
 	}
 	s.mu.Lock()
 	s.lastAudit, s.lastAuditAt = checks, time.Now()

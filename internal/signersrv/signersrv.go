@@ -7,12 +7,14 @@ package signersrv
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -72,6 +74,10 @@ func New(dataDir string) (*Server, error) {
 		return nil, err
 	}
 	s.log = f
+	if s.token == "" {
+		fmt.Fprintln(os.Stderr, "cfoil-signer: demo mode — /sign accepts loopback callers without a token;"+
+			" set CFOIL_SIGNER_TOKEN (same value for cfoil) in any shared environment")
+	}
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, "ok") })
 	s.mux.HandleFunc("GET /pub", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, hex.EncodeToString(s.pub))
@@ -87,10 +93,18 @@ type signedRow struct {
 
 func (s *Server) Handler() http.Handler { return s.mux }
 
+// maxSeqJump caps how far a caller may push the countersigned frontier in
+// one request, so a bad request cannot park maxSeq at the end of time and
+// lock future signing out.
+const maxSeqJump = 100000
+
 func (s *Server) sign(w http.ResponseWriter, r *http.Request) {
-	if s.token != "" && r.Header.Get("Authorization") != "Bearer "+s.token {
-		http.Error(w, "unauthorised", 401)
-		return
+	if s.token != "" {
+		got := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		if subtle.ConstantTimeCompare([]byte(got), []byte(s.token)) != 1 {
+			http.Error(w, "unauthorised", 401)
+			return
+		}
 	}
 	var in struct {
 		UptoSeq  int64  `json:"upto_seq"`
@@ -100,7 +114,16 @@ func (s *Server) sign(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", 400)
 		return
 	}
+	if _, err := hex.DecodeString(in.HeadHash); err != nil {
+		http.Error(w, "bad request", 400)
+		return
+	}
 	s.mu.Lock()
+	if in.UptoSeq > s.maxSeq+maxSeqJump {
+		s.mu.Unlock()
+		http.Error(w, fmt.Sprintf("REFUSED: seq %d jumps too far past the countersigned frontier %d", in.UptoSeq, s.maxSeq), 409)
+		return
+	}
 	if prev, ok := s.signed[in.UptoSeq]; ok && prev != in.HeadHash {
 		s.mu.Unlock()
 		http.Error(w, fmt.Sprintf("REFUSED: seq %d was already countersigned with a different head — history does not get rewritten", in.UptoSeq), 409)

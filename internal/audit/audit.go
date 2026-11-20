@@ -6,7 +6,6 @@ package audit
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -20,11 +19,15 @@ type Check struct {
 	Detail string `json:"detail"`
 }
 
-// Run verifies the bundle in dir. pinnedPub, when non-empty, is the
-// signer's public key obtained OUTSIDE the bundle (the -pub flag, or the
-// signer itself); with it, a bundle whose checkpoints were re-signed by a
-// different key is rejected. Without it the key inside the bundle is used
-// and the result says so plainly.
+// Run verifies the bundle in dir. pinnedPub, when non-empty, must be the
+// signer's public key obtained OUTSIDE the bundle (the -pub flag, a key
+// file the auditor carries, or the live signer): with it, a bundle whose
+// checkpoints were re-signed by a different key is rejected.
+//
+// A signer_pub.txt INSIDE the bundle is never treated as a pin — whoever
+// can rewrite the bundle can rewrite that file too. Without an
+// out-of-band key the signatures are checked for internal consistency
+// only, and the result says "unpinned" in so many words.
 func Run(dir string, pinnedPub string) ([]Check, error) {
 	receipts, err := core.ReadAll[core.Receipt](filepath.Join(dir, "receipts.jsonl"))
 	if err != nil {
@@ -34,11 +37,8 @@ func Run(dir string, pinnedPub string) ([]Check, error) {
 	if err != nil {
 		return nil, err
 	}
-	if pinnedPub == "" {
-		if b, err := os.ReadFile(filepath.Join(dir, "signer_pub.txt")); err == nil {
-			pinnedPub = strings.TrimSpace(string(b))
-		}
-	}
+	pinned := strings.TrimSpace(pinnedPub) != ""
+	pinnedPub = strings.TrimSpace(pinnedPub)
 	var out []Check
 	add := func(n int, title string, pass bool, detail string) {
 		out = append(out, Check{n, title, pass, detail})
@@ -50,20 +50,28 @@ func Run(dir string, pinnedPub string) ([]Check, error) {
 		err == nil, map[bool]string{true: fmt.Sprintf("%d receipts, head %s", seq, core.Short(head)),
 			false: fmt.Sprint(err)}[err == nil])
 
-	// 2. Checkpoint signatures, against the pinned key where one is given.
+	// 2. Checkpoint signatures — against the out-of-band key when one was
+	// given; otherwise internal consistency only (one key throughout),
+	// stated as unpinned.
 	badCp := 0
 	detail := "no checkpoints in the bundle"
+	keys := map[string]bool{}
 	for _, cp := range cps {
+		keys[strings.ToLower(cp.Pub)] = true
 		if err := core.VerifyCheckpoint(cp, receipts, pinnedPub); err != nil {
 			badCp++
 			detail = err.Error()
 		}
 	}
+	if len(keys) > 1 {
+		badCp++
+		detail = fmt.Sprintf("the bundle's checkpoints carry %d different signer keys", len(keys))
+	}
 	if len(cps) > 0 && badCp == 0 {
-		if pinnedPub != "" {
-			detail = fmt.Sprintf("%d checkpoint signatures verify against the pinned signer key %s", len(cps), core.Short(pinnedPub))
+		if pinned {
+			detail = fmt.Sprintf("%d checkpoint signatures verify against the OUT-OF-BAND pinned signer key %s", len(cps), core.Short(pinnedPub))
 		} else {
-			detail = fmt.Sprintf("%d signatures verify, but with the key the bundle itself carries — pin the signer's key with -pub (or signer_pub.txt) to trust this fully", len(cps))
+			detail = fmt.Sprintf("UNPINNED: %d signatures are internally consistent under the key the bundle itself carries; only an out-of-band key (-pub, or a copy of signer_pub.txt you received separately) proves the signer", len(cps))
 		}
 	}
 	add(2, "Signer checkpoints: every countersignature verifies", len(cps) > 0 && badCp == 0, detail)

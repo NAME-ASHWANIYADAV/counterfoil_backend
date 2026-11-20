@@ -105,9 +105,13 @@ hash check and is refused with a receipt.
   it offline: the hash chain, the signer's countersignatures, a human-issued mandate behind
   every reserved effect, a read-back or in-doubt behind every dispatch, clock closures at
   their declared evidence, intent uniqueness, canaries and two-person activations. The
-  signer's public key is pinned outside the bundle (`signer_pub.txt`, written from the live
-  signer, or the `-pub` flag), so a re-signed bundle fails; the signer itself refuses to
-  countersign a different history for a sequence it already signed. An in-doubt item on a
+  signer's public key is pinned **out of band** — the `-pub` flag, or the live signer when
+  verifying from inside the product; the exported `signer_pub.txt` is a convenience copy to
+  hand to the auditor *separately*, and a key read from inside the bundle is never treated
+  as a pin (the verifier then says UNPINNED in so many words). The signer itself refuses to
+  countersign a different history for a sequence it already signed. In the one-command demo
+  the signing endpoint trusts loopback; set `CFOIL_SIGNER_TOKEN` (same value for both
+  processes) in any shared environment. An in-doubt item on a
   reserved step can only be re-dispatched under its mandate — never closed or cancelled by
   hand — and a skipped step satisfies dependencies only when it was optional by design.
   All three processes bind to loopback by default; `CFOIL_SIGNER_TOKEN` adds a shared

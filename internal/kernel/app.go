@@ -56,6 +56,7 @@ type App struct {
 	counters    map[string]int
 
 	chat    *core.Log // personal text lives here, NOT in receipts
+	svy     *core.Log // survey answers: same rule — the receipt carries a hash
 	chatMu  sync.Mutex
 	chatLog map[string][]ChatMsg // case id -> transcript (memory)
 
@@ -92,8 +93,12 @@ func New(cfg Config) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	svy, err := core.OpenLog(filepath.Join(cfg.DataDir, "surveys.jsonl"))
+	if err != nil {
+		return nil, err
+	}
 	a := &App{
-		cfg: cfg, chain: chain, ledger: led, chat: chat,
+		cfg: cfg, chain: chain, ledger: led, chat: chat, svy: svy,
 		users: map[string]core.User{}, employees: map[string]core.Employee{},
 		packages: map[string]*Package{}, cases: map[string]*core.Case{},
 		approvals: map[string]*core.Approval{}, mandates: map[string]*core.Mandate{},

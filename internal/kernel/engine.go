@@ -336,6 +336,16 @@ func (a *App) DecideApproval(approvalID, userID, pin string, approve bool, edits
 	if u.PIN != pin {
 		return fmt.Errorf("re-authentication failed: wrong PIN")
 	}
+	// Separation of duties: whoever opened the case cannot also decide
+	// its reserved approvals — the warrant needs a second named person.
+	for _, rr := range a.Receipts(0, ap.CaseID) {
+		if rr.Action == "case.opened" {
+			if rr.ActorType == "human" && rr.ActorID == userID {
+				return fmt.Errorf("REFUSED: separation of duties — you opened this case, so a different named person must decide %s", ap.ReservedID)
+			}
+			break
+		}
+	}
 	req := map[string]any{}
 	for k, v := range ap.Request {
 		req[k] = v

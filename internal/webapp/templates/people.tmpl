@@ -5,7 +5,7 @@
 <div class="card tight">
   <div class="hd"><h2>Employees</h2>
     <span style="display:flex;gap:10px;align-items:center"><span class="note">{{len .Data}} on record</span>
-    {{if or (eq .User.Role "hrops") (eq .User.Role "hradmin")}}<a class="btn sm" href="/onboarding/new">Start onboarding</a>{{end}}</span></div>
+    {{if eq .User.Role "hrops"}}<a class="btn sm" href="/onboarding/new">Start onboarding</a>{{end}}</span></div>
   <table class="t">
     <tr><th>Name</th><th style="width:110px">ID</th><th>Title</th><th style="width:120px">Location</th><th>Manager</th><th style="width:90px" class="num">Leave days</th><th style="width:190px">Exit</th></tr>
     {{range .Data}}

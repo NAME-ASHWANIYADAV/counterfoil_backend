@@ -86,11 +86,15 @@ type personRow struct {
 }
 
 func (s *Server) peoplePage(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requireUser(w, r, "manager", "payroll", "hrops", "hradmin", "auditor"); !ok {
+	u, ok := s.requireUser(w, r, "manager", "payroll", "hrops", "hradmin", "auditor")
+	if !ok {
 		return
 	}
 	var rows []personRow
 	for _, e := range s.app.Employees() {
+		if !canSeeEmployee(u, e) {
+			continue
+		}
 		row := personRow{E: e}
 		if c, ok := s.app.CaseForEmployee(e.ID); ok {
 			row.Case = c
@@ -121,12 +125,17 @@ type personVM struct {
 }
 
 func (s *Server) personPage(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requireUser(w, r, "manager", "payroll", "hrops", "hradmin", "auditor"); !ok {
+	u, ok := s.requireUser(w, r, "manager", "payroll", "hrops", "hradmin", "auditor")
+	if !ok {
 		return
 	}
 	e, ok := s.app.Employee(r.PathValue("id"))
 	if !ok {
 		s.notFound(w, r)
+		return
+	}
+	if !canSeeEmployee(u, e) {
+		http.Error(w, "403: a manager sees their own reports, not the wider workforce", http.StatusForbidden)
 		return
 	}
 	v := personVM{E: e}
@@ -171,15 +180,18 @@ type clocksVM struct {
 }
 
 func (s *Server) clocksPage(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requireUser(w, r, "manager", "payroll", "hrops", "hradmin", "auditor"); !ok {
+	u, ok := s.requireUser(w, r, "manager", "payroll", "hrops", "hradmin", "auditor")
+	if !ok {
 		return
 	}
 	v := clocksVM{CaseOf: map[string]*core.Case{}, EmpOf: map[string]core.Employee{}}
 	for _, ob := range s.app.ObligationsFor("") {
-		if c, ok := s.app.Case(ob.CaseID); ok {
-			v.CaseOf[ob.CaseID] = c
-			v.EmpOf[ob.CaseID], _ = s.app.Employee(c.EmployeeID)
+		c, hasCase := s.app.Case(ob.CaseID)
+		if !hasCase || !s.canSeeCase(u, c) {
+			continue
 		}
+		v.CaseOf[ob.CaseID] = c
+		v.EmpOf[ob.CaseID], _ = s.app.Employee(c.EmployeeID)
 		if ob.Status == core.ClockClosed {
 			v.Closed = append(v.Closed, ob)
 		} else {

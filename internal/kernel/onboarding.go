@@ -7,6 +7,7 @@ package kernel
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -104,23 +105,28 @@ func (a *App) StartOnboarding(byUserID string, in OfferInput) (string, error) {
 }
 
 // onboardingRecordsCheck is the pre-hire duplicate guard: a joiner must
-// NOT already hold a directory account. The absence is verified against
-// the directory's own records, not assumed.
+// NOT already hold a directory account. Absence counts only when the
+// directory itself says 404; an unreachable directory is UNKNOWN and
+// goes to a person — this check fails closed, like everything here.
 func (a *App) onboardingRecordsCheck(emp core.Employee) (ok bool, summary string, facts map[string]any) {
 	facts = map[string]any{"email": emp.Email}
-	rec, err := a.LiveDirectory(emp.Email)
-	if err != nil {
-		// The directory holds nothing for this address — that is the
-		// green state for a new hire.
-		sum := fmt.Sprintf("directory holds no account for %s — no duplicate hire; payroll id %s reserved",
+	rec, found, err := a.LiveDirectoryLookup(emp.Email)
+	switch {
+	case err != nil:
+		sum := fmt.Sprintf("the directory could not be read (%v) — absence of a duplicate cannot be verified; a person must check before the offer proceeds", err)
+		facts["directory"], facts["summary"] = "unknown: target unreachable", sum
+		return false, sum, facts
+	case found:
+		sum := fmt.Sprintf("an account for %s already exists in the directory (status %v) — possible duplicate hire",
+			emp.Email, rec["status"])
+		facts["directory"], facts["summary"] = rec, sum
+		return false, sum, facts
+	default:
+		sum := fmt.Sprintf("the directory's own reply confirms no account for %s — no duplicate hire; payroll id %s reserved",
 			emp.Email, emp.PayrollID)
-		facts["directory"], facts["summary"] = "no existing account", sum
+		facts["directory"], facts["summary"] = "no existing account (target-confirmed 404)", sum
 		return true, sum, facts
 	}
-	sum := fmt.Sprintf("an account for %s already exists in the directory (status %v) — possible duplicate hire",
-		emp.Email, rec["status"])
-	facts["directory"], facts["summary"] = rec, sum
-	return false, sum, facts
 }
 
 // day1Check re-checks day-one readiness against what each step actually
@@ -146,27 +152,54 @@ func (a *App) day1Check(c *core.Case) (ok bool, summary string) {
 	return true, "laptop and card tickets confirmed in IT's own records; payroll setup staged — all attributed"
 }
 
-// SubmitSurvey records a survey's answers and completes its task. The
-// answers are synthetic demo content; the submission itself is the
-// receipt that matters.
+// SurveyRecord is one submission in the survey side store. Like chat,
+// the text itself never enters the receipts: the receipt carries the
+// field names and a hash, and this record is what the hash commits to.
+type SurveyRecord struct {
+	CaseID  string            `json:"case_id"`
+	StepID  string            `json:"step_id"`
+	TaskID  string            `json:"task_id"`
+	UserID  string            `json:"user_id"`
+	Answers map[string]string `json:"answers"`
+	TS      time.Time         `json:"ts"`
+}
+
+// SubmitSurvey stores the answers in the survey side store and puts a
+// receipt on the case committing to them — fields and hash only, so
+// personal text stays out of the exportable chain.
 func (a *App) SubmitSurvey(taskID, userID string, answers map[string]string) error {
 	t, ok := a.taskByID(taskID)
 	if !ok || !t.Open {
 		return fmt.Errorf("no open task %s", taskID)
 	}
-	data := map[string]any{"task_id": taskID}
+	clean := map[string]string{}
+	fields := make([]string, 0, len(answers))
 	for k, v := range answers {
-		if strings.TrimSpace(v) != "" {
-			data["answer_"+k] = strings.TrimSpace(v)
+		if v = strings.TrimSpace(v); v != "" {
+			clean[k] = v
+			fields = append(fields, k)
 		}
+	}
+	sort.Strings(fields)
+	rec := SurveyRecord{CaseID: t.CaseID, StepID: t.StepID, TaskID: taskID,
+		UserID: userID, Answers: clean, TS: time.Now().UTC()}
+	if err := a.svy.Append(rec); err != nil {
+		return err
+	}
+	canon := map[string]any{}
+	for k, v := range clean {
+		canon[k] = v
 	}
 	if err := a.emit(core.Receipt{
 		CaseID: t.CaseID, StepID: t.StepID, Action: "survey.submitted",
-		ActorType: "human", ActorID: userID, Data: data,
+		ActorType: "human", ActorID: userID,
+		Data: map[string]any{"task_id": taskID, "fields": fields,
+			"answers_hash": core.MustHashCanon(canon),
+			"note":         "answers held in the survey store; the hash commits to them — personal text stays out of the receipts"},
 	}); err != nil {
 		return err
 	}
-	return a.CompleteTask(taskID, userID, "survey submitted — answers on the receipt")
+	return a.CompleteTask(taskID, userID, "survey submitted — answers committed by hash")
 }
 
 func (a *App) taskByID(id string) (*core.Task, bool) {

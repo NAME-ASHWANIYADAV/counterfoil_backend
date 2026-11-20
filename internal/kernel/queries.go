@@ -41,6 +41,24 @@ func (a *App) LiveDirectory(email string) (map[string]any, error) {
 	return a.mockGet("/directory/users/" + url.PathEscape(email))
 }
 
+// LiveDirectoryLookup distinguishes the three outcomes a security check
+// must never conflate: found, verifiably absent (the target itself said
+// 404), and UNKNOWN (unreachable, misbehaving). Absence is a verdict
+// only when the target's own reply says so.
+func (a *App) LiveDirectoryLookup(email string) (rec map[string]any, found bool, err error) {
+	if email == "" {
+		return nil, false, nil
+	}
+	rec, err = a.mockGet("/directory/users/" + url.PathEscape(email))
+	if err == nil {
+		return rec, true, nil
+	}
+	if err.Error() == "status 404" {
+		return nil, false, nil
+	}
+	return nil, false, err
+}
+
 // LiveCard reads the access-card stand-in's own record for a card id.
 func (a *App) LiveCard(cardID string) (map[string]any, error) {
 	if cardID == "" {

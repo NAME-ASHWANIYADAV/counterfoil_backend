@@ -18,8 +18,12 @@ import (
 
 // ---------------------------------------------------------------- onboarding intake
 
+// Intake is hrops-only: the HR administrator who extends the offer
+// (RSV-2) must be a different named person from whoever entered it —
+// separation of duties by construction, and enforced again in
+// DecideApproval for every case.
 func (s *Server) onboardingNewPage(w http.ResponseWriter, r *http.Request) {
-	if _, ok := s.requireUser(w, r, "hrops", "hradmin"); !ok {
+	if _, ok := s.requireUser(w, r, "hrops"); !ok {
 		return
 	}
 	type vm struct {
@@ -34,7 +38,7 @@ func (s *Server) onboardingNewPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) onboardingStart(w http.ResponseWriter, r *http.Request) {
-	u, ok := s.requireUser(w, r, "hrops", "hradmin")
+	u, ok := s.requireUser(w, r, "hrops")
 	if !ok {
 		return
 	}
@@ -135,6 +139,30 @@ func (s *Server) surveySubmit(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, back, http.StatusSeeOther)
 }
 
+// canSeeEmployee scopes the browse surfaces: HR back-office roles see
+// the organisation; a manager sees themselves and their direct reports,
+// never the wider workforce (or its salaries).
+func canSeeEmployee(u core.User, e core.Employee) bool {
+	if u.Role != "manager" {
+		return true
+	}
+	return e.ID == u.EmpID || e.ManagerID == u.EmpID
+}
+
+func (s *Server) canSeeCase(u core.User, c *core.Case) bool {
+	if c == nil {
+		return false
+	}
+	if u.Role != "manager" {
+		return true
+	}
+	if c.Sealed {
+		return false
+	}
+	e, ok := s.app.Employee(c.EmployeeID)
+	return ok && canSeeEmployee(u, e)
+}
+
 // ---------------------------------------------------------------- search
 
 type searchVM struct {
@@ -147,7 +175,7 @@ type searchVM struct {
 }
 
 func (s *Server) searchPage(w http.ResponseWriter, r *http.Request) {
-	_, ok := s.requireUser(w, r, "manager", "payroll", "hrops", "hradmin", "auditor")
+	u, ok := s.requireUser(w, r, "manager", "payroll", "hrops", "hradmin", "auditor")
 	if !ok {
 		return
 	}
@@ -163,14 +191,20 @@ func (s *Server) searchPage(w http.ResponseWriter, r *http.Request) {
 			}
 			return false
 		}
+		// Every result set honours the same scope as its page: a manager
+		// searches their reports' slice of the record, nothing wider.
+		visibleCase := map[string]bool{}
+		for _, c := range s.app.Cases() {
+			visibleCase[c.ID] = s.canSeeCase(u, c)
+		}
 		for _, e := range s.app.Employees() {
-			if len(v.People) < 10 && match(e.Name, e.Email, e.ID, e.Title) {
+			if len(v.People) < 10 && canSeeEmployee(u, e) && match(e.Name, e.Email, e.ID, e.Title) {
 				v.People = append(v.People, e)
 			}
 		}
 		for _, c := range s.app.Cases() {
 			e, _ := s.app.Employee(c.EmployeeID)
-			if len(v.Cases) < 10 && match(c.ID, e.Name, c.Package) {
+			if len(v.Cases) < 10 && visibleCase[c.ID] && match(c.ID, e.Name, c.Package) {
 				v.Cases = append(v.Cases, c)
 				v.EmpOf[c.ID] = e
 			}
@@ -179,13 +213,16 @@ func (s *Server) searchPage(w http.ResponseWriter, r *http.Request) {
 		rs := s.app.Receipts(0, "")
 		for i := len(rs) - 1; i >= 0 && len(v.Receipts) < 12; i-- {
 			rc := rs[i]
+			if u.Role == "manager" && !visibleCase[rc.CaseID] {
+				continue // platform receipts and other cases stay out of a manager's view
+			}
 			hashHit := len(q) >= 6 && (strings.HasPrefix(rc.Hash, lq) || strings.HasPrefix(rc.PrevHash, lq))
 			if rc.Seq == seqQ || hashHit || match(rc.Action, rc.CaseID, rc.StepID) {
 				v.Receipts = append(v.Receipts, rc)
 			}
 		}
 		for _, ob := range s.app.ObligationsFor("") {
-			if len(v.Clocks) < 10 && match(ob.Title, ob.Basis, ob.CaseID) {
+			if len(v.Clocks) < 10 && visibleCase[ob.CaseID] && match(ob.Title, ob.Basis, ob.CaseID) {
 				v.Clocks = append(v.Clocks, ob)
 			}
 		}

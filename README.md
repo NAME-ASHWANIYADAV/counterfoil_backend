@@ -244,3 +244,19 @@ public design language, measured from tbo.com and the TBOHolidays portal (their 
 Montserrat + #307FE2/#F36B21 brand tokens; the portal's Open Sans, navy #014693 chrome,
 gold accents, card and input geometry) so the product reads as a native TBO back-office
 tool; no TBO logo or mark is used.
+
+## Deploying on Render (free tier)
+
+- **Build command:** `go build -o cfoil ./cmd/cfoil`
+- **Start command:** `./cfoil demo`   (one service: product + signer + stand-ins)
+- **Environment:** set `CFOIL_AI_API_KEY` (and optionally `CFOIL_AI_MODEL` /
+  `CFOIL_AI_FALLBACK`). Render injects `PORT` and `RENDER_EXTERNAL_URL` itself:
+  cfoil binds `0.0.0.0:$PORT`, and a keep-alive goroutine pings its own public
+  `/healthz` through Render's edge every 60s so the free instance never idles
+  to sleep (tune with `CFOIL_KEEPALIVE_SECONDS`, minimum 20; point elsewhere
+  with `CFOIL_KEEPALIVE_URL`; unset both locally and nothing pings).
+- **Caveats:** the free instance has no persistent disk, so every deploy or
+  restart starts a pristine receipt chain — fine for a judge demo. Keeping the
+  service awake spends the ~750 free instance-hours a month, which fits exactly
+  one always-on service. In any shared deployment set `CFOIL_SIGNER_TOKEN`
+  (same value for cfoil and the signer).

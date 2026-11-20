@@ -64,6 +64,17 @@
         tampered amount, agent deciding, expired mandate, duplicate intent, lying reply, kill-switch bypass —
         and every run leaves a receipt an auditor can re-check offline.</li>
     </ul>
+    <h2>Identity, deliberately without passwords</h2>
+    <ul class="ab-drills">
+      <li><b>No self-registration, by design.</b> An internal HR platform is not a consumer site: accounts
+        are provisioned by HR and IT through the onboarding journey (a warranted, receipted process), and
+        identity belongs to the corporate directory. A register page here would be an attack surface
+        pretending to be a feature.</li>
+      <li><b>No passwords stored, ever.</b> The demo signs in with a persona picker standing in for
+        corporate single sign-on; production is OIDC against the company's identity provider, with
+        re-authentication at each reserved decision carrying the mandate's hash as its nonce. The PIN you
+        type at an approval is the demo stand-in for exactly that re-login.</li>
+    </ul>
     <p class="note">This is a hackathon prototype: the demo identity provider is a persona picker with PINs,
     and the stand-in target systems are ours. The production design swaps in OIDC re-authentication and real
     targets without moving any of the guarantees above.</p>

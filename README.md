@@ -1,6 +1,14 @@
-# Counterfoil
+# Counterfoil — backend
 
 **Named humans decide. Agents do the rest. Done means confirmed.**
+
+> **TBO VoyageHack 4.0 · PS2 (AI-native HR services platform) · Team Init to Win It.**
+> This repository is the complete, runnable product: the kernel *and* the interface it
+> renders (deliberately server-rendered — one binary, no build step, the UI reads the
+> same receipts the audit does). Deploy it on Render as-is. The companion repo
+> [`counterfoil_frontend`](https://github.com/NAME-ASHWANIYADAV/counterfoil_frontend)
+> is the Vercel front door that serves it at a `*.vercel.app` URL and mirrors the
+> interface source for review.
 
 Counterfoil is an agent-first HR services platform, shown in depth on employee exits
 (resignation to full-and-final settlement). It is Team *Init to Win It*'s prototype for
@@ -260,3 +268,20 @@ tool; no TBO logo or mark is used.
   service awake spends the ~750 free instance-hours a month, which fits exactly
   one always-on service. In any shared deployment set `CFOIL_SIGNER_TOKEN`
   (same value for cfoil and the signer).
+
+## Split deployment: Vercel in front, Render behind
+
+```
+browser ── https://<your-app>.vercel.app ── Vercel (counterfoil_frontend: proxy)
+                                               │  every path, same origin
+                                               ▼
+                               Render (this repo: Go binary)
+                               renders the UI · runs the kernel · holds the receipts
+```
+
+1. Deploy **this repo** on Render (section above). Note the service URL,
+   e.g. `https://counterfoil-backend.onrender.com`.
+2. Deploy [`counterfoil_frontend`](https://github.com/NAME-ASHWANIYADAV/counterfoil_frontend)
+   on Vercel and set that URL in its `vercel.json` (one line). Done — the whole
+   product is served at your Vercel URL; sessions, forms and the live poller work
+   unchanged because the proxy keeps everything first-party.

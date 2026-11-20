@@ -30,3 +30,25 @@
   var log = document.querySelector(".chat .log");
   if (log) log.scrollTop = log.scrollHeight;
 })();
+
+// One arrival, then stillness: drop the boot class after the entrance so
+// the live poller's re-renders never replay it.
+setTimeout(function () { document.documentElement.classList.remove("boot"); }, 950);
+
+// Honest busy state on genuinely slow actions (the model draft takes seconds).
+document.addEventListener("submit", function (e) {
+  var b = e.target.querySelector("button[data-slow]");
+  if (b) { b.dataset.busy = "1"; b.textContent = b.dataset.slow; }
+});
+
+// A hash chip copies itself — the full value when the title holds it.
+document.addEventListener("click", function (e) {
+  var h = e.target.closest ? e.target.closest(".hash") : null;
+  if (!h || !navigator.clipboard) return;
+  var full = h.getAttribute("title") || h.textContent;
+  navigator.clipboard.writeText(full).then(function () {
+    var t = h.textContent;
+    h.textContent = "copied";
+    setTimeout(function () { h.textContent = t; }, 900);
+  }).catch(function () {});
+});

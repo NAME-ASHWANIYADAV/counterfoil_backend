@@ -32,18 +32,19 @@ type Server struct {
 	tmpl *template.Template
 	mux  *http.ServeMux
 
-	mu       sync.Mutex
-	sessions map[string]string // sid -> user id
-	flash    map[string]string // sid -> one-shot message
-	exportDir string
-	lastAudit []audit.Check
+	mu          sync.Mutex
+	sessions    map[string]string // sid -> user id
+	flash       map[string]string // sid -> one-shot message
+	exportDir   string
+	lastAudit   []audit.Check
 	lastAuditAt time.Time
 }
 
 func New(app *kernel.App) (*Server, error) {
 	funcs := template.FuncMap{
-		"fdisplay": kernel.FDisplay,
-		"short":    core.Short,
+		"fdisplay":  kernel.FDisplay,
+		"short":     core.Short,
+		"hasPrefix": strings.HasPrefix,
 		"inr": func(v any) string {
 			f, ok := v.(float64)
 			if !ok {

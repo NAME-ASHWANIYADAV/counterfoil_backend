@@ -64,11 +64,26 @@ func (s *Server) routes() {
 // ---------------------------------------------------------------- login
 
 func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
-	type vm struct{ Users []core.User }
+	type vm struct {
+		Users []core.User
+		Tape  []core.Receipt
+		Seq   int64
+		Head  string
+	}
 	users := s.app.Users()
 	order := map[string]int{"leaver": 0, "manager": 1, "payroll": 2, "hrops": 3, "hradmin": 4, "auditor": 5}
 	sort.SliceStable(users, func(i, j int) bool { return order[users[i].Role] < order[users[j].Role] })
-	s.render(w, r, "login", "", "Sign in", vm{Users: users})
+	v := vm{Users: users}
+	// The ledger, live: the login proves the product before anyone signs
+	// in — the last few receipts and the chain head, real, not staged.
+	all := s.app.Receipts(0, "")
+	sort.Slice(all, func(i, j int) bool { return all[i].Seq < all[j].Seq })
+	if n := len(all); n > 6 {
+		all = all[n-6:]
+	}
+	v.Tape = all
+	v.Seq, v.Head = s.app.Chain().Head()
+	s.render(w, r, "login", "", "Sign in", v)
 }
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {

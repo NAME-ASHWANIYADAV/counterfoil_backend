@@ -20,7 +20,7 @@
           <div style="margin-top:6px">Look at the target's own records first: <a href="http://localhost:7072/" target="_blank">open the stand-in systems ↗</a></div>
           {{if $d.HasAI}}
           <form method="post" action="/indoubt/{{.ID}}/draft" style="margin-top:8px">
-            <button class="btn sm ghost">{{if index $d.Drafts .ID}}Draft again{{else}}Draft investigation summary{{end}} · model</button>
+            <button class="btn sm ghost" data-slow="Drafting — reading the target…">{{if index $d.Drafts .ID}}Draft again{{else}}Draft investigation summary{{end}} · model</button>
           </form>
           {{with index $d.Drafts .ID}}
           <div class="draft">

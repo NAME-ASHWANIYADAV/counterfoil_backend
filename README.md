@@ -226,4 +226,7 @@ Team **Init to Win It** — Sonal Verma (lead), Ashwani Yadav, Arpita, Vaibhav G
 Lakshay Bansal. Built with Go's standard library only. AI tools: Claude (Claude Code) was
 used for research, drafting and writing this prototype's code under the team's direction;
 see the Round 1 architecture brief for the full disclosure. License: to be chosen by the
-team before publishing; no third-party code is vendored.
+team before publishing; no third-party code is vendored. The one vendored asset is the
+IBM Plex type family (Sans, Mono, Serif — SIL Open Font License 1.1, license text at
+[internal/webapp/static/fonts/LICENSE.txt](internal/webapp/static/fonts/LICENSE.txt)),
+which the product self-hosts; no font, script or style is ever loaded from a CDN.

@@ -66,7 +66,8 @@
         <div class="bd">{{template "clocks" $c}}</div>
       </div>
       <div class="card tight">
-        <div class="hd"><h2>My passbook</h2><span class="note">no counterfoil, no claim — these lines are receipts, not messages</span></div>
+        <div class="hd stub"><h2>My passbook</h2><span class="note">no counterfoil, no claim — these lines are receipts, not messages</span></div>
+        <div class="tearline"></div>
         <div class="bd">{{template "receipts" $c.Receipts}}</div>
       </div>
     {{else}}

@@ -291,14 +291,16 @@ func (s *Server) chatSend(w http.ResponseWriter, r *http.Request) {
 	s.app.AddChat(kernel.ChatMsg{CaseID: caseID, From: u.ID, Text: text})
 	emp, _ := s.app.Employee(u.EmpID)
 
-	// Rules first: a clear resignation (regex + date formats) is intake,
-	// whatever else is configured — typed slots never come from a model.
-	isRes, lwd := s.app.Router().ParseIntake(text)
+	// Rules first — but intake detection only matters while no case is
+	// open: once a case exists, every message (even one that mentions
+	// notice or resignation) belongs to the agent, which has the
+	// context; its staging tool refuses a second tender anyway.
+	isRes, lwd := false, ""
+	if strings.HasPrefix(caseID, "PRE-") {
+		isRes, lwd = s.app.Router().ParseIntake(text)
+	}
 	agentNote := ""
 	switch {
-	case isRes && !strings.HasPrefix(caseID, "PRE-"):
-		s.app.AddChat(kernel.ChatMsg{CaseID: caseID, From: "counterfoil",
-			Text: "Your exit case is already open — the tracker is on your exit page (My exit in the sidebar)."})
 	case isRes:
 		disp := "not stated (the notice rule will propose the earliest date)"
 		if lwd != "" {

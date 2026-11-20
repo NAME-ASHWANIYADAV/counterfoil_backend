@@ -20,6 +20,8 @@ import (
 const leaverSystem = `You are Counterfoil's assistant inside an HR exits product, chatting with %s (employee id %s). Today is %s.
 Hard rules:
 - Answer ONLY from tool results. If a tool does not return a fact, say you cannot confirm it. Never invent dates, amounts or statuses.
+- Repeat figures EXACTLY as the tool gives them (prefer the *_display fields); never recompute, merge or swap lines.
+- If a follow-up needs figures or details you have not already stated verbatim, call the tool again — do not claim data is unavailable without re-checking.
 - Policy answers carry their citation (the "cite" field) in brackets.
 - If they express an intent to resign, call propose_resignation (pass their date only if they stated one, format YYYY-MM-DD). Then tell them a confirmation card has appeared below: nothing is submitted until they press Confirm, and nothing is accepted until their named approver decides.
 - You cannot decide, approve, submit, cancel or change anything. Named people decide; you read, draft and stage.
@@ -105,7 +107,7 @@ func (s *Server) leaverTools(u core.User, emp core.Employee) []kernel.AITool {
 		},
 		{
 			Name: "get_my_settlement",
-			Desc: "The employee's final settlement (full-and-final) breakdown, if it has been computed: each line with its amount and citation.",
+			Desc: "The employee's final settlement (full-and-final): each line with its amount and citation, the net payable, and whether the payment has actually been RELEASED or is still held.",
 			Run: func(map[string]any) (map[string]any, error) {
 				c, ok := s.app.CaseForEmployee(emp.ID)
 				if !ok {
@@ -121,27 +123,44 @@ func (s *Server) leaverTools(u core.User, emp core.Employee) []kernel.AITool {
 				if err != nil {
 					return nil, err
 				}
-				var ff struct {
-					Period string  `json:"period"`
-					Total  float64 `json:"total"`
-					Lines  []struct {
-						Label  string  `json:"label"`
-						Amount float64 `json:"amount"`
-						Cite   string  `json:"cite"`
-					} `json:"lines"`
-				}
+				// Decode with the kernel's own type — its JSON tags are
+				// the ones the receipts actually carry (amount_inr,
+				// total_inr); a hand-rolled struct here once read zeros.
+				var ff kernel.FFFacts
 				if err := json.Unmarshal(b, &ff); err != nil {
 					return nil, err
 				}
+				// Figures are given as preformatted strings as well as
+				// numbers: a model relays "₹1,06,666.67" more faithfully
+				// than it reads nested JSON.
 				var lines []map[string]any
+				var display []string
 				for _, l := range ff.Lines {
 					lines = append(lines, map[string]any{"label": l.Label, "amount_inr": l.Amount, "cite": l.Cite})
+					display = append(display, fmt.Sprintf("%s: ₹%.2f (%s)", l.Label, l.Amount, l.Cite))
 				}
-				return map[string]any{
-					"available": true, "period": ff.Period, "total_inr": ff.Total, "lines": lines,
-					"note":    "computed by the cited rules; it is released only under the payroll approver's mandate, and the release counts as done only when payroll's own record confirms it",
-					"summary": fmt.Sprintf("₹%.2f over %d lines", ff.Total, len(lines)),
-				}, nil
+				out := map[string]any{
+					"available": true, "period": ff.Period,
+					"net_payable_inr":     ff.Total,
+					"net_payable_display": fmt.Sprintf("₹%.2f", ff.Total),
+					"lines":               lines,
+					"lines_display":       display,
+					"released":            false,
+					"note":                "net_payable is the sum of the lines; a negative line is a recovery",
+					"summary":             fmt.Sprintf("net ₹%.2f over %d lines", ff.Total, len(lines)),
+				}
+				for _, rc := range s.app.Receipts(0, c.ID) {
+					if rc.Action == "payment.released" {
+						out["released"] = true
+						out["release"] = fmt.Sprintf("released under mandate %v at evidence %s — receipt #%d",
+							rc.Data["mandate_id"], rc.Evidence, rc.Seq)
+						break
+					}
+				}
+				if out["released"] == false {
+					out["release"] = "not yet released: it stands as a held draft until the payroll approver signs off, and counts as paid only when payroll's own record confirms it"
+				}
+				return out, nil
 			},
 		},
 		{
@@ -209,7 +228,7 @@ func (s *Server) tryAgentChat(u core.User, emp core.Employee, caseID, text strin
 	if ai == nil {
 		return false, nil
 	}
-	history := kernel.HistoryFromChat(s.app.ChatFor(caseID), 8)
+	history := kernel.HistoryFromChat(s.app.ChatFor(caseID), 12)
 	// The current message is passed separately; drop it from history.
 	if n := len(history); n > 0 && history[n-1].Role == "user" && history[n-1].Text == text {
 		history = history[:n-1]

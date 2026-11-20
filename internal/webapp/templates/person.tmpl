@@ -32,6 +32,8 @@
               <div><span class="pill {{if eq (printf "%s" (index $d.Dir "status")) "active"}}p-done{{else}}p-breached{{end}}">{{index $d.Dir "status"}}</span></div>
               <div class="note" style="margin-top:6px">id <span class="hash">{{index $d.Dir "id"}}</span></div>
               {{with index $d.Dir "last_action_ref"}}{{if .}}<div class="note">last action ref <span class="hash">{{.}}</span></div>{{end}}{{end}}
+            {{else if $d.DirNone}}<div><span class="pill p-pending">no account</span></div>
+              <div class="note" style="margin-top:6px">the directory holds no record for this address — read live; for a joiner this is the state before provisioning</div>
             {{else}}<div class="note">could not read the directory: {{$d.DirErr}}</div>{{end}}
           </div>
           <div class="liverec">
@@ -40,6 +42,8 @@
               <div><span class="pill {{if eq (printf "%s" (index $d.Card "status")) "active"}}p-done{{else}}p-breached{{end}}">{{index $d.Card "status"}}</span></div>
               <div class="note" style="margin-top:6px">card <span class="hash">{{index $d.Card "id"}}</span> · zones: {{index $d.Card "zones"}}</div>
               {{with index $d.Card "last_action_ref"}}{{if .}}<div class="note">last action ref <span class="hash">{{.}}</span></div>{{end}}{{end}}
+            {{else if $d.CardNone}}<div><span class="pill p-pending">no card</span></div>
+              <div class="note" style="margin-top:6px">no card is on record for this person — read live</div>
             {{else}}<div class="note">could not read the card system: {{$d.CardErr}}</div>{{end}}
           </div>
         </div>

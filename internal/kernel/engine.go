@@ -241,6 +241,13 @@ func (a *App) userName(id string) string {
 	return id
 }
 
+func (a *App) employeeName(id string) string {
+	if e, ok := a.Employee(id); ok {
+		return fmt.Sprintf("%s (%s)", e.Name, id)
+	}
+	return id
+}
+
 // approvalRequest builds the exact request envelope the approver decides.
 // Its canonical hash is what the mandate will bind.
 func (a *App) approvalRequest(c *core.Case, def StepDef, emp core.Employee) (map[string]any, []core.Fact) {
@@ -272,6 +279,24 @@ func (a *App) approvalRequest(c *core.Case, def StepDef, emp core.Employee) (map
 		}
 		if rec, ok := c.Facts["records"].(map[string]any); ok {
 			facts = append(facts, core.Fact{Label: "Records check", Value: str(rec, "summary"), Source: "IT, Admin and payroll stand-ins (read)"})
+		}
+		return req, facts
+	case "RSV-2":
+		req := Envelope("offer.extend", map[string]any{
+			"candidate_name": emp.Name, "email": emp.Email,
+			"title": factStr(c, "offer_title"), "monthly_gross_inr": factFloat(c, "offer_gross_inr"),
+			"joining_date": factStr(c, "joining_date"), "manager_id": factStr(c, "manager_id"),
+		})
+		facts := []core.Fact{
+			{Label: "Candidate", Value: fmt.Sprintf("%s (%s)", emp.Name, emp.Email), Source: "offer record, entered by HR"},
+			{Label: "Role and compensation", Value: fmt.Sprintf("%s · ₹%.0f gross/month", factStr(c, "offer_title"), factFloat(c, "offer_gross_inr")), Source: "offer record"},
+			{Label: "Joining date", Value: FDisplay(factStr(c, "joining_date")), Source: "offer record"},
+			{Label: "Reports to", Value: a.employeeName(factStr(c, "manager_id")), Source: "org chart"},
+		}
+		if rec, ok := c.Facts["records"].(map[string]any); ok {
+			if sum := str(rec, "summary"); sum != "" {
+				facts = append(facts, core.Fact{Label: "Duplicate check", Value: sum, Source: "directory stand-in (read)"})
+			}
 		}
 		return req, facts
 	case "RSV-6":
@@ -360,13 +385,13 @@ func (a *App) DecideApproval(approvalID, userID, pin string, approve bool, edits
 		ID: fmt.Sprintf("MD-%04d", a.next("mandate")), ApprovalID: ap.ID, CaseID: ap.CaseID,
 		ReservedID: ap.ReservedID, ApproverID: userID,
 		RequestHash: core.MustHashCanon(req),
-		IssuedAt: time.Now().UTC(), ExpiresAt: time.Now().UTC().Add(45 * time.Minute),
+		IssuedAt:    time.Now().UTC(), ExpiresAt: time.Now().UTC().Add(45 * time.Minute),
 		SingleUse: true, ReAuth: "demo-pin",
 	}
 	if err := a.emit(core.Receipt{
 		CaseID: ap.CaseID, StepID: ap.StepID, Action: "mandate.issued", ActorType: "human",
 		ActorID: userID,
-		Data: map[string]any{"mandate": m},
+		Data:    map[string]any{"mandate": m},
 	}); err != nil {
 		return err
 	}
@@ -378,7 +403,7 @@ func (a *App) DecideApproval(approvalID, userID, pin string, approve bool, edits
 			CaseID: ap.CaseID, Action: "case.updated", ActorType: "human", ActorID: userID,
 			Data: map[string]any{"bound_lwd": str(args, "last_working_day"),
 				"buyout": args["notice_buyout"] == true,
-				"facts": map[string]any{"buyout_amount": args["buyout_amount_inr"]}},
+				"facts":  map[string]any{"buyout_amount": args["buyout_amount_inr"]}},
 		})
 	}
 	def := a.mustStepDef(ap.CaseID, ap.StepID)
@@ -549,6 +574,9 @@ func (a *App) ResolveInDoubt(itemID, userID, resolution, note string) error {
 		if def.Effect == nil {
 			return fmt.Errorf("nothing to retry on this step")
 		}
+		_ = a.emit(core.Receipt{CaseID: item.CaseID, StepID: item.StepID, Action: "effect.retried",
+			ActorType: "human", ActorID: userID,
+			Data: map[string]any{"intent_key": item.IntentKey, "note": "manual retry ordered from the in-doubt queue"}})
 		a.setStep(item.CaseID, item.StepID, core.StepRunning, "agent:dispatcher", true, "", "retry ordered by "+userID)
 		if item.IntentKey != "" {
 			st, _ := a.ledger.Transition(item.IntentKey, func(x *core.Intent) {
@@ -629,8 +657,21 @@ func (a *App) runImpl(caseID string, def StepDef) {
 			ActorID: def.Impl, Data: map[string]any{"facts": facts},
 		})
 	}
+	onboarding := c.Package == "onboarding"
 	switch def.Impl {
 	case "records_check":
+		if onboarding {
+			// Pre-hire guard: the directory must NOT already know this
+			// address. Verified against the target's own records.
+			ok, sum, factsMap := a.onboardingRecordsCheck(emp)
+			update(map[string]any{"records": factsMap})
+			if !ok {
+				a.openInDoubt(caseID, def.ID, "", "hrops", sum, nil)
+				return
+			}
+			a.markStepDone(caseID, def, "agent:records_check", false, "", sum)
+			return
+		}
 		sum, factsMap := a.recordsCheck(emp)
 		update(map[string]any{"records": factsMap})
 		a.markStepDone(caseID, def, "agent:records_check", false, "", sum)
@@ -684,6 +725,16 @@ func (a *App) runImpl(caseID string, def StepDef) {
 		a.markStepDone(caseID, def, "agent:confirm_clocks", false, "",
 			"employee informed; statutory clocks started from "+c.BoundLWD)
 	case "clearance":
+		if onboarding {
+			okAll, sum := a.day1Check(c)
+			update(map[string]any{"day1": sum})
+			if !okAll {
+				a.openInDoubt(caseID, def.ID, "", "hrops", sum, nil)
+				return
+			}
+			a.markStepDone(caseID, def, "agent:day1_check", false, core.EvAttributed, sum)
+			return
+		}
 		okAll, sum := a.clearanceCheck(c, emp)
 		update(map[string]any{"clearance": sum})
 		if !okAll {
@@ -707,7 +758,8 @@ func (a *App) runImpl(caseID string, def StepDef) {
 		a.markStepDone(caseID, def, "agent:ff_compute", false, "",
 			fmt.Sprintf("final settlement ₹%.2f (%d lines, each cited)", ff.Total, len(ff.Lines)))
 	case "deadline_monitor":
-		// Completes when every clock for the case is closed.
+		// Completes when every clock for the case is closed. A journey
+		// that declares no clocks has nothing to watch — done, and says so.
 		obs := a.ObligationsFor(caseID)
 		open := 0
 		for _, ob := range obs {
@@ -715,9 +767,13 @@ func (a *App) runImpl(caseID string, def StepDef) {
 				open++
 			}
 		}
-		if len(obs) > 0 && open == 0 {
+		switch {
+		case len(obs) == 0:
+			a.markStepDone(caseID, def, "agent:deadline_monitor", false, "",
+				"no statutory clocks declared for this journey")
+		case open == 0:
 			a.markStepDone(caseID, def, "agent:deadline_monitor", false, "", "every clock closed on evidence")
-		} else {
+		default:
 			a.setStep(caseID, def.ID, core.StepRunning, "agent:deadline_monitor", false, "",
 				fmt.Sprintf("%d clock(s) still open", open))
 		}

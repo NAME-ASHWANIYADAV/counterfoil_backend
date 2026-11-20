@@ -59,7 +59,7 @@ func TestCheckRefusesHostilePackage(t *testing.T) {
 				TimeoutApprove: 48},
 			{ID: "b", N: 2, Kind: core.StepEffect, Auto: true,
 				Effect: &EffectDef{Action: "payroll.release", Target: "payroll",
-					ReadBack: ReadBack{Strategy: "attributed", Collection: "payroll/payments"},
+					ReadBack:         ReadBack{Strategy: "attributed", Collection: "payroll/payments"},
 					RequiredEvidence: "attributed"}},
 		}}
 	res := CheckManifest(m, func(action string) (ReservedDef, bool) {

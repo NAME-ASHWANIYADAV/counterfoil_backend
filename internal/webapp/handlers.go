@@ -66,6 +66,14 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /clocks", s.clocksPage)
 	m.HandleFunc("GET /settlement/{id}", s.settlementPage)
 	m.HandleFunc("GET /doctrine", s.doctrinePage)
+
+	m.HandleFunc("GET /onboarding/new", s.onboardingNewPage)
+	m.HandleFunc("POST /onboarding/start", s.onboardingStart)
+	m.HandleFunc("GET /survey/{id}", s.surveyPage)
+	m.HandleFunc("POST /survey/{id}", s.surveySubmit)
+	m.HandleFunc("GET /search", s.searchPage)
+	m.HandleFunc("GET /mandates", s.mandatesPage)
+	m.HandleFunc("GET /about", s.aboutPage)
 	m.HandleFunc("/", s.notFound)
 }
 
@@ -712,7 +720,15 @@ func (s *Server) dashboardPage(w http.ResponseWriter, r *http.Request) {
 		case "effect.refused":
 			v.Refusals++
 		case "effect.retried":
-			v.Retries++
+			// Automatic (transport) retries; manual ones are counted via
+			// their resolution receipt so older chains read true too.
+			if rr.ActorType != "human" {
+				v.Retries++
+			}
+		case "indoubt.resolved":
+			if res, _ := rr.Data["resolution"].(string); res == "retry" {
+				v.Retries++
+			}
 		}
 	}
 	var closeSum time.Duration
@@ -915,15 +931,16 @@ func (s *Server) adminReservedAdd(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------- audit
 
 type auditVM struct {
-	Seq       int64
-	Head      string
-	Cp        core.Checkpoint
-	SignerErr string
-	Receipts  []core.Receipt
-	ExportDir string
-	Exported  bool
-	Checks    []audit.Check
-	CheckedAt time.Time
+	Seq         int64
+	Head        string
+	Cp          core.Checkpoint
+	SignerErr   string
+	Receipts    []core.Receipt
+	ExportDir   string
+	Exported    bool
+	Checks      []audit.Check
+	CheckedAt   time.Time
+	Checkpoints []core.Checkpoint
 }
 
 func (s *Server) auditPage(w http.ResponseWriter, r *http.Request) {
@@ -934,6 +951,13 @@ func (s *Server) auditPage(w http.ResponseWriter, r *http.Request) {
 		ExportDir: s.exportDir}
 	v.Seq, v.Head = s.app.Chain().Head()
 	v.Cp, v.SignerErr = s.app.Chain().LastCheckpoint()
+	v.Checkpoints = s.app.Chain().Checkpoints()
+	for i, j := 0, len(v.Checkpoints)-1; i < j; i, j = i+1, j-1 {
+		v.Checkpoints[i], v.Checkpoints[j] = v.Checkpoints[j], v.Checkpoints[i]
+	}
+	if len(v.Checkpoints) > 12 {
+		v.Checkpoints = v.Checkpoints[:12]
+	}
 	if _, err := os.Stat(filepath.Join(s.exportDir, "receipts.jsonl")); err == nil {
 		v.Exported = true
 	}

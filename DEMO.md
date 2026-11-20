@@ -90,7 +90,7 @@ ran, step by step, and says in bold that a named person decides. Clear the lie, 
   `go run ./cmd/cfoil serve` again. State rebuilds from the receipts; any intent left
   PENDING is reconciled by **reading the target**, never by resending blindly.
 
-## 6 · Extending the platform, live
+## 6 · Extending the platform, live — then RUNNING the extension
 
 Sign in as **Meera Nair** → Controls → *Service packages*. The **onboarding** package (16
 steps) ships inactive. **Run cfoil check** → PASS with a certificate hash. Activate with
@@ -98,6 +98,17 @@ two named people (Meera **5529** + Dev **4418**). The core did not change — a 
 data; `git status` stays clean. To show a refusal, add `"timeout_approve_hours": 48` to
 any approval step of `extensions/onboarding/package.json` and run the check again:
 **REFUSED — approval by silence or timeout is forbidden.**
+
+Then prove it is a journey, not a slide: as **Dev** → *People* → **Start onboarding**.
+(Try it before activating and the form itself is refused — the admission gate guards case
+creation too.) Enter an offer — name, email, title, manager, gross, joining date. Watch
+the same kernel run the second service line: the duplicate-hire check reads the
+directory's own records live; Meera extends the offer under **RSV-2** (a new mandate in
+the registry); laptop, card and payroll effects go out under the warrant path and come
+back **attributed**; day-one readiness is re-checked against the step evidence; the
+week-one survey is a real form whose submission is a receipt; the case closes with its
+own closure statement. The new joiner now has a profile under *People* whose live panels
+honestly show "no account yet" until IT provisions them.
 
 ## 7 · The audit room
 

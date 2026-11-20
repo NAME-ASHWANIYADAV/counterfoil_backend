@@ -38,13 +38,16 @@ func (a *App) runEffect(c *core.Case, def StepDef) {
 	args := a.effectArgs(c, def)
 
 	// Demo tamper switch: change the bytes AFTER approval, BEFORE the
-	// gate. The gate must catch it; that is the point of the drill.
+	// gate — on the next RESERVED dispatch only, as the control promises.
+	// The gate must catch it; that is the point of the drill.
 	if a.TamperNext() {
-		if amt, ok := args["amount_inr"].(float64); ok {
-			args["amount_inr"] = amt + 1
-			a.SetTamperNext(false)
-			_ = a.emit(core.Receipt{CaseID: c.ID, StepID: def.ID, Action: "demo.tamper",
-				ActorType: "system", Data: map[string]any{"note": "demo control changed the amount by ₹1 after approval"}})
+		if _, isReserved := a.Reserved(def.Effect.Action); isReserved {
+			if amt, ok := args["amount_inr"].(float64); ok {
+				args["amount_inr"] = amt + 1
+				a.SetTamperNext(false)
+				_ = a.emit(core.Receipt{CaseID: c.ID, StepID: def.ID, Action: "demo.tamper",
+					ActorType: "system", Data: map[string]any{"note": "demo control changed the amount by ₹1 after approval"}})
+			}
 		}
 	}
 	req := Envelope(e.Action, args)
@@ -118,6 +121,16 @@ func (a *App) effectArgs(c *core.Case, def StepDef) map[string]any {
 		args["notice_buyout"] = c.Buyout
 		args["buyout_amount_inr"] = factFloat(c, "buyout_amount")
 	case "itsm.ticket.create":
+		if c.Package == "onboarding" {
+			kind := "laptop_provision"
+			if def.ID == "card_issue" {
+				kind = "card_issue"
+			}
+			args["type"] = kind
+			args["name"] = emp.Name
+			args["due"] = factStr(c, "joining_date")
+			break
+		}
 		asset := ""
 		if len(emp.Assets) > 0 {
 			asset = emp.Assets[0]
@@ -130,6 +143,13 @@ func (a *App) effectArgs(c *core.Case, def StepDef) map[string]any {
 	case "cards.revoke":
 		args["card_id"] = emp.CardID
 	case "payroll.stage":
+		if c.Package == "onboarding" {
+			args["payroll_id"] = emp.PayrollID
+			args["type"] = "setup"
+			args["monthly_gross_inr"] = emp.MonthlyGross
+			args["start"] = factStr(c, "joining_date")
+			break
+		}
 		args["payroll_id"] = emp.PayrollID
 		args["amount_inr"] = factFloat(c, "ff_total")
 		args["period"] = factStr(c, "ff_period")

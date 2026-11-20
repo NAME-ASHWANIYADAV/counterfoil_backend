@@ -97,6 +97,12 @@ func OpenChain(dir string, signerURL string, every int64) (*Chain, error) {
 
 func (c *Chain) Observe(fn func(Receipt)) { c.observers = append(c.observers, fn) }
 
+// Checkpoints returns every countersignature on record, oldest first.
+func (c *Chain) Checkpoints() []Checkpoint {
+	cps, _ := ReadAll[Checkpoint](c.cpLog.Path())
+	return cps
+}
+
 // Close releases the underlying files (tests and shutdown).
 func (c *Chain) Close() error {
 	err1 := c.log.Close()

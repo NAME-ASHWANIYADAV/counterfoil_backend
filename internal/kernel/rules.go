@@ -18,20 +18,20 @@ type RulePack struct {
 	Version string `json:"version"`
 	Dated   string `json:"dated"`
 	Notice  struct {
-		Days         int    `json:"days"`
-		BuyoutAllowed bool  `json:"buyout_allowed"`
-		Cite         string `json:"cite"`
+		Days          int    `json:"days"`
+		BuyoutAllowed bool   `json:"buyout_allowed"`
+		Cite          string `json:"cite"`
 	} `json:"notice"`
 	FinalWages struct {
-		WorkingDays int    `json:"working_days"`
-		Cite        string `json:"cite"`
-		NeedsLegalConfirmation bool `json:"needs_legal_confirmation"`
+		WorkingDays            int    `json:"working_days"`
+		Cite                   string `json:"cite"`
+		NeedsLegalConfirmation bool   `json:"needs_legal_confirmation"`
 	} `json:"final_wages"`
 	Gratuity struct {
-		MinYears float64 `json:"min_years"`
-		DueDays  int     `json:"due_days"`
-		Cite     string  `json:"cite"`
-		NeedsLegalConfirmation bool `json:"needs_legal_confirmation"`
+		MinYears               float64 `json:"min_years"`
+		DueDays                int     `json:"due_days"`
+		Cite                   string  `json:"cite"`
+		NeedsLegalConfirmation bool    `json:"needs_legal_confirmation"`
 	} `json:"gratuity"`
 	RelievingLetter struct {
 		Days int    `json:"days"`
@@ -114,14 +114,14 @@ func (rp *RulePack) AddWorkingDays(start time.Time, n int) (time.Time, []string)
 
 // NoticeFacts is the step-4 rule output.
 type NoticeFacts struct {
-	NoticeDays   int     `json:"notice_days"`
-	TenderDate   string  `json:"tender_date"`
-	EarliestLWD  string  `json:"earliest_lwd"`
-	RequestedLWD string  `json:"requested_lwd"`
-	ShortfallDays int    `json:"shortfall_days"`
-	BuyoutAllowed bool   `json:"buyout_allowed"`
+	NoticeDays    int     `json:"notice_days"`
+	TenderDate    string  `json:"tender_date"`
+	EarliestLWD   string  `json:"earliest_lwd"`
+	RequestedLWD  string  `json:"requested_lwd"`
+	ShortfallDays int     `json:"shortfall_days"`
+	BuyoutAllowed bool    `json:"buyout_allowed"`
 	BuyoutAmount  float64 `json:"buyout_amount_inr"`
-	Cite         string  `json:"cite"`
+	Cite          string  `json:"cite"`
 }
 
 func (rp *RulePack) ComputeNotice(emp core.Employee, tender, requestedLWD string) (NoticeFacts, error) {
@@ -161,11 +161,11 @@ type FFLine struct {
 }
 
 type FFFacts struct {
-	Lines   []FFLine `json:"lines"`
-	Total   float64  `json:"total_inr"`
-	Period  string   `json:"period"` // e.g. "Dec 2026"
-	GratuityEligible bool `json:"gratuity_eligible"`
-	ServiceYears     float64 `json:"service_years"`
+	Lines            []FFLine `json:"lines"`
+	Total            float64  `json:"total_inr"`
+	Period           string   `json:"period"` // e.g. "Dec 2026"
+	GratuityEligible bool     `json:"gratuity_eligible"`
+	ServiceYears     float64  `json:"service_years"`
 }
 
 func round2(f float64) float64 { return math.Round(f*100) / 100 }

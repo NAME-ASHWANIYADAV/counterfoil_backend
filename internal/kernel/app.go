@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -15,14 +16,14 @@ import (
 
 // Config wires one cfoil instance.
 type Config struct {
-	DataDir   string
-	MocksURL  string // base URL of the target stand-ins
-	SignerURL string
-	ExtDir    string // extensions/
-	PolicyPath string
-	RulesPath  string
-	UsersPath  string
-	EmployeesPath string
+	DataDir         string
+	MocksURL        string // base URL of the target stand-ins
+	SignerURL       string
+	ExtDir          string // extensions/
+	PolicyPath      string
+	RulesPath       string
+	UsersPath       string
+	EmployeesPath   string
 	CheckpointEvery int64
 	DispatchTimeout time.Duration
 	SettleWait      time.Duration // out-of-model grace before in-doubt
@@ -31,10 +32,10 @@ type Config struct {
 // App is the kernel: all state is rebuilt by replaying the receipt chain,
 // so the receipts are not beside the system of record — they are it.
 type App struct {
-	cfg   Config
-	chain *core.Chain
+	cfg    Config
+	chain  *core.Chain
 	ledger *core.Ledger
-	rules *RulePack
+	rules  *RulePack
 
 	mu          sync.Mutex
 	users       map[string]core.User
@@ -54,8 +55,8 @@ type App struct {
 	tamperNext  bool // demo: tamper the next reserved dispatch by one rupee
 	counters    map[string]int
 
-	chat   *core.Log            // personal text lives here, NOT in receipts
-	chatMu sync.Mutex
+	chat    *core.Log // personal text lives here, NOT in receipts
+	chatMu  sync.Mutex
 	chatLog map[string][]ChatMsg // case id -> transcript (memory)
 
 	router *Router
@@ -251,6 +252,11 @@ func str(m map[string]any, k string) string {
 func (a *App) apply(r core.Receipt) {
 	d := r.Data
 	switch r.Action {
+	case "employee.created":
+		if e, ok := asJSON[core.Employee](d["employee"]); ok {
+			a.employees[e.ID] = e
+			a.noteID("employee", e.ID)
+		}
 	case "case.opened":
 		c, ok := asJSON[core.Case](d["case"])
 		if !ok {
@@ -261,6 +267,7 @@ func (a *App) apply(r core.Receipt) {
 			cc.Steps = map[string]*core.StepState{}
 		}
 		a.cases[cc.ID] = &cc
+		a.noteID("case", cc.ID)
 	case "case.updated":
 		if c := a.cases[r.CaseID]; c != nil {
 			if facts, ok := d["facts"].(map[string]any); ok {
@@ -315,6 +322,7 @@ func (a *App) apply(r core.Receipt) {
 		if ok {
 			cp := ap
 			a.approvals[cp.ID] = &cp
+			a.noteID("approval", cp.ID)
 		}
 	case "approval.decided":
 		if ap := a.approvals[str(d, "approval_id")]; ap != nil {
@@ -330,6 +338,7 @@ func (a *App) apply(r core.Receipt) {
 		if ok {
 			cp := m
 			a.mandates[cp.ID] = &cp
+			a.noteID("mandate", cp.ID)
 		}
 	case "mandate.used":
 		if m := a.mandates[str(d, "mandate_id")]; m != nil {
@@ -340,6 +349,7 @@ func (a *App) apply(r core.Receipt) {
 		if ok {
 			cp := it
 			a.indoubt[cp.ID] = &cp
+			a.noteID("indoubt", cp.ID)
 		}
 	case "indoubt.resolved":
 		if it := a.indoubt[str(d, "item_id")]; it != nil {
@@ -353,6 +363,7 @@ func (a *App) apply(r core.Receipt) {
 		if ok {
 			cp := t
 			a.tasks[cp.ID] = &cp
+			a.noteID("task", cp.ID)
 		}
 	case "task.done":
 		if t := a.tasks[str(d, "task_id")]; t != nil {
@@ -413,6 +424,30 @@ func (a *App) next(kind string) int {
 	defer a.mu.Unlock()
 	a.counters[kind]++
 	return a.counters[kind]
+}
+
+// noteID re-seeds a counter from an id seen during replay, so a restart
+// can never mint an id the chain already holds. Called from apply only
+// (the caller holds the lock). The numeric tail of "XX-0042" is 42.
+func (a *App) noteID(kind, id string) {
+	i := strings.LastIndexByte(id, '-')
+	if i < 0 {
+		return
+	}
+	n, err := strconv.Atoi(id[i+1:])
+	if err != nil {
+		return
+	}
+	if kind == "employee" {
+		// Employee records minted by onboarding are numbered 2000+n.
+		if n < 2000 {
+			return
+		}
+		n -= 2000
+	}
+	if n > a.counters[kind] {
+		a.counters[kind] = n
+	}
 }
 
 // ---------------------------------------------------------------- queries

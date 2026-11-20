@@ -33,11 +33,19 @@
       <tr>
         <td><b>{{.Title}}</b><div class="note">case {{.CaseID}} · step {{.StepID}}</div></td>
         <td>
+          {{if eq .StepID "survey"}}
+          <div style="display:flex;gap:8px;align-items:center">
+            <a class="btn sm" href="/survey/{{.ID}}">Open the survey</a>
+            <form method="post" action="/tasks/{{.ID}}/skip" class="inline">
+              <input type="hidden" name="back" value="/work"><button class="btn sm ghost">Skip (optional)</button></form>
+          </div>
+          {{else}}
           <form method="post" action="/tasks/{{.ID}}/done" style="display:flex;gap:8px">
             <input type="hidden" name="back" value="/work">
             <input type="text" name="note" placeholder="one-line note (hashed into the receipt)">
             <button class="btn sm">Confirm done</button>
           </form>
+          {{end}}
         </td>
       </tr>
       {{else}}<tr><td colspan="2" class="empty">No open inputs.</td></tr>

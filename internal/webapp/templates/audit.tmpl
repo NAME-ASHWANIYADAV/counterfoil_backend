@@ -26,6 +26,22 @@
       </div></div>
   </div>
 
+  {{if $d.Checkpoints}}
+  <div class="card tight">
+    <div class="hd"><h2>Countersignatures</h2>
+      <span class="note">the separate signer's memory of the chain — it refuses to re-sign a rewritten past</span></div>
+    <table class="t">
+      <tr><th style="width:110px">Covers up to</th><th style="width:170px">Countersigned</th><th>Signer key</th><th>Signature</th></tr>
+      {{range $d.Checkpoints}}
+      <tr><td><a class="rlink" href="/receipts/{{.UptoSeq}}">#{{.UptoSeq}}</a></td>
+        <td class="note">{{timefmt .TS}}</td>
+        <td><span class="hash" title="{{.Pub}}">{{short .Pub}}</span></td>
+        <td><span class="hash" title="{{.Sig}}">{{short .Sig}}</span></td></tr>
+      {{end}}
+    </table>
+  </div>
+  {{end}}
+
   {{if $d.Checks}}
   <div class="card tight">
     <div class="hd"><h2>Offline verifier — 10 checks</h2><span class="note">run {{timefmt $d.CheckedAt}} on the exported bundle (same code as cmd/verify-audit)</span></div>

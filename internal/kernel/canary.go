@@ -14,10 +14,10 @@ import (
 // after every package activation.)
 
 type CanaryResult struct {
-	ID      string `json:"id"`
-	Title   string `json:"title"`
-	Held    bool   `json:"held"`
-	Note    string `json:"note"`
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	Held  bool   `json:"held"`
+	Note  string `json:"note"`
 }
 
 func (a *App) RunCanaries(by string) []CanaryResult {
@@ -64,7 +64,7 @@ func (a *App) RunCanaries(by string) []CanaryResult {
 			// canarysys always replies 201 and stores nothing.
 			def := StepDef{ID: "probe", Effect: &EffectDef{
 				Action: "canary.create", Target: "canarysys", Path: "/canarysys/items",
-				ReadBack: ReadBack{Strategy: "attributed", Collection: "canarysys/items"},
+				ReadBack:         ReadBack{Strategy: "attributed", Collection: "canarysys/items"},
 				RequiredEvidence: core.EvAttributed}}
 			key := core.IntentKey(canaryCase, "probe-lie", "canary.create",
 				map[string]any{"probe": by + fdate(time.Now())})

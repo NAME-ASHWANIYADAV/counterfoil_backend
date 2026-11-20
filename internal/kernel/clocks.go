@@ -48,10 +48,10 @@ func (a *App) startClocks(caseID string, emp core.Employee, boundLWD string, ffE
 	rlDue := rl.Add(time.Duration(rp.RelievingLetter.Days) * day)
 	if err := mk(core.Obligation{
 		ID: "OB-" + caseID + "-letter", RuleID: "relieving_letter",
-		Title: fmt.Sprintf("Relieving letter within %d days of the last working day", rp.RelievingLetter.Days),
-		Basis: rp.RelievingLetter.Cite,
+		Title:      fmt.Sprintf("Relieving letter within %d days of the last working day", rp.RelievingLetter.Days),
+		Basis:      rp.RelievingLetter.Cite,
 		StartEvent: "separation.accepted", StartDate: boundLWD,
-		DueDate: fdate(rlDue),
+		DueDate:          fdate(rlDue),
 		EvidenceRequired: "internal", ClosesOnAction: "document.issued",
 	}); err != nil {
 		return err
@@ -66,7 +66,7 @@ func (a *App) startClocks(caseID string, emp core.Employee, boundLWD string, ffE
 			Title: fmt.Sprintf("Gratuity within %d days", rp.Gratuity.DueDays),
 			Basis: rp.Gratuity.Cite, NeedsLegalConfirmation: rp.Gratuity.NeedsLegalConfirmation,
 			StartEvent: "separation.accepted", StartDate: boundLWD,
-			DueDate: fdate(gDue),
+			DueDate:          fdate(gDue),
 			EvidenceRequired: core.EvAttributed, ClosesOnAction: "payment.released",
 		}); err != nil {
 			return err

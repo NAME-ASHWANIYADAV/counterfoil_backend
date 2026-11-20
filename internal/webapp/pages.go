@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 
 	"counterfoil/internal/core"
 	"counterfoil/internal/kernel"
@@ -112,8 +113,10 @@ type personVM struct {
 	Clocks   []*core.Obligation
 	Dir      map[string]any
 	DirErr   string
+	DirNone  bool
 	Card     map[string]any
 	CardErr  string
+	CardNone bool
 	Receipts []core.Receipt
 }
 
@@ -139,14 +142,19 @@ func (s *Server) personPage(w http.ResponseWriter, r *http.Request) {
 		v.Receipts = rs
 	}
 	// Live reads of the targets' own records — the same reads the
-	// dispatcher's read-back performs. Errors show as errors.
+	// dispatcher's read-back performs. An absent record is a clean fact
+	// (a joiner before provisioning); a transport failure is an error.
 	if d, err := s.app.LiveDirectory(e.Email); err == nil {
 		v.Dir = d
+	} else if strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "no email") {
+		v.DirNone = true
 	} else {
 		v.DirErr = err.Error()
 	}
 	if c, err := s.app.LiveCard(e.CardID); err == nil {
 		v.Card = c
+	} else if strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "no card") {
+		v.CardNone = true
 	} else {
 		v.CardErr = err.Error()
 	}

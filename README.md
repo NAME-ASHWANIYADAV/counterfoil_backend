@@ -98,8 +98,11 @@ hash check and is refused with a receipt.
   declarations. `cfoil check` refuses unsafe rules (approval by silence or timeout, a
   reserved effect without its approval step, an effect with no read-back declaration) and
   issues a certificate hash; **two named people** activate exactly that hash. The
-  onboarding package ships inactive so activation can be shown live. Zero core files
-  change.
+  onboarding package ships inactive so activation can be shown live — and once active,
+  it RUNS: HR opens a real onboarding case from a signed offer (People → Start
+  onboarding), the duplicate-hire check reads the directory live, the offer is a reserved
+  decision (RSV-2) with its own mandate, and the provisioning effects walk the same
+  warrant path to `attributed`. Two journeys, one kernel, zero core files changed.
 - **Reserved list as configuration.** The brief's six reserved decisions are a floor HR
   can add to but never remove ([policy/reserved.json](policy/reserved.json)).
 - **Canaries.** Seven probes re-test the guards on demand — a forged mandate, a tampered
@@ -167,12 +170,17 @@ POSH/grievance text is routed only, sealed, and never reaches a model or the rec
 
 This is a hackathon prototype on synthetic data. Honestly separated:
 
-**Working in this repository** — the 19-step journey end to end on the stand-ins; mandates
-bound to canonical request hashes with refusal on mismatch; the intent ledger with
-crash-safe claims; read-back with three evidence levels; the in-doubt queue; clocks with
-working-day arithmetic and holiday skips; kill switch; package check + two-person
-activation; canaries; hash-chained receipts, a separate signer, export and the 10-check
-offline verifier; the full web product.
+**Working in this repository** — both journeys end to end on the stand-ins: the 19-step
+exit and the 16-step onboarding (opened from a signed offer after two-person activation);
+mandates bound to canonical request hashes with refusal on mismatch, browsable in a
+mandates registry; the intent ledger with crash-safe claims; read-back with three
+evidence levels; the in-doubt queue with model-drafted investigation summaries; clocks
+with working-day arithmetic and a clocks board; kill switch; package check + two-person
+activation; canaries; hash-chained receipts — each one a page of its own that recomputes
+its hash on request — a separate signer with a countersignature history, export and the
+10-check offline verifier; people pages with live target reads; real survey forms whose
+submissions are receipts; global search; printable letter and settlement documents; a
+public about page whose figures are read live from the chain; the full web product.
 
 **Deliberately simplified** — storage is append-only JSONL + replay (PostgreSQL is the
 production design); the demo IdP is a persona picker + PIN (production design: OIDC

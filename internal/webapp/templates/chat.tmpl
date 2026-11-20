@@ -56,7 +56,8 @@
       <div class="card"><div class="bd" style="display:flex;justify-content:space-between;gap:10px;align-items:center">
         <div><b>{{.Title}}</b><div class="note">step {{.StepID}} · optional</div></div>
         <div style="display:flex;gap:8px">
-          <form method="post" action="/tasks/{{.ID}}/done"><input type="hidden" name="back" value="/chat"><button class="btn sm">Fill now</button></form>
+          {{if eq .StepID "survey"}}<a class="btn sm" href="/survey/{{.ID}}">Fill the survey</a>
+          {{else}}<form method="post" action="/tasks/{{.ID}}/done"><input type="hidden" name="back" value="/chat"><button class="btn sm">Fill now</button></form>{{end}}
           <form method="post" action="/tasks/{{.ID}}/skip"><input type="hidden" name="back" value="/chat"><button class="btn sm ghost">Decline</button></form>
         </div>
       </div></div>

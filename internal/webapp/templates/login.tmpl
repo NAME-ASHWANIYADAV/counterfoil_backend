@@ -24,6 +24,7 @@ try{if(sessionStorage.cfb)document.documentElement.classList.remove("boot");sess
         <div class="taperow"><span class="seq">#{{printf "%04d" .Seq}}</span><span class="act">{{.Action}}{{if .CaseID}} — {{.CaseID}}{{end}}</span></div>
         {{end}}
       </div>
+      <p style="margin-top:18px;font-size:13px"><a href="/about" style="color:var(--sky)">Read how Counterfoil decides</a></p>
     </div>
     <div class="cfcard" data-reveal style="--i:1">
       <div class="stubhd">

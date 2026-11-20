@@ -17,36 +17,36 @@ import (
 // the core never changes (zero core diff).
 
 type ReadBack struct {
-	Strategy   string `json:"strategy"`   // attributed | observed | none
-	Collection string `json:"collection"` // what to GET in the target
+	Strategy      string `json:"strategy"`                // attributed | observed | none
+	Collection    string `json:"collection"`              // what to GET in the target
 	Justification string `json:"justification,omitempty"` // required when strategy=none
 }
 
 type EffectDef struct {
-	Action           string   `json:"action"` // e.g. directory.disable
-	Target           string   `json:"target"` // internal | itsm | directory | cards | payroll
-	Path             string   `json:"path,omitempty"` // POST path on the target
+	Action           string   `json:"action"`              // e.g. directory.disable
+	Target           string   `json:"target"`              // internal | itsm | directory | cards | payroll
+	Path             string   `json:"path,omitempty"`      // POST path on the target
 	ArgsFrom         []string `json:"args_from,omitempty"` // fact keys copied into args
 	ReadBack         ReadBack `json:"read_back"`
 	RequiredEvidence string   `json:"required_evidence"` // attributed | observed | internal
-	RetrySafe        bool     `json:"retry_safe"` // target honours our key or action is convergent
-	Reversibility    string   `json:"reversibility"` // reversible | convergent | compensable | irreversible
+	RetrySafe        bool     `json:"retry_safe"`        // target honours our key or action is convergent
+	Reversibility    string   `json:"reversibility"`     // reversible | convergent | compensable | irreversible
 }
 
 type StepDef struct {
-	ID        string     `json:"id"`
-	N         int        `json:"n"`
-	Title     string     `json:"title"`
-	Kind      core.StepKind `json:"kind"`
-	Impl      string     `json:"impl,omitempty"`  // registered function for agent/rule steps
-	Reserved  string     `json:"reserved,omitempty"` // RSV id for approvals
-	ApproverRole string  `json:"approver_role,omitempty"`
-	Role      string     `json:"role,omitempty"` // human_input owner role
-	Auto      bool       `json:"auto"`           // runs without a person
-	DependsOn []string   `json:"depends_on,omitempty"`
-	At        string     `json:"at,omitempty"` // "" | "lwd" (runs at the LWD cut-off)
-	Effect    *EffectDef `json:"effect,omitempty"`
-	Optional  bool       `json:"optional,omitempty"` // e.g. exit survey
+	ID           string        `json:"id"`
+	N            int           `json:"n"`
+	Title        string        `json:"title"`
+	Kind         core.StepKind `json:"kind"`
+	Impl         string        `json:"impl,omitempty"`     // registered function for agent/rule steps
+	Reserved     string        `json:"reserved,omitempty"` // RSV id for approvals
+	ApproverRole string        `json:"approver_role,omitempty"`
+	Role         string        `json:"role,omitempty"` // human_input owner role
+	Auto         bool          `json:"auto"`           // runs without a person
+	DependsOn    []string      `json:"depends_on,omitempty"`
+	At           string        `json:"at,omitempty"` // "" | "lwd" (runs at the LWD cut-off)
+	Effect       *EffectDef    `json:"effect,omitempty"`
+	Optional     bool          `json:"optional,omitempty"` // e.g. exit survey
 	// Forbidden in a safe package; the checker refuses them. Present in
 	// the struct so a hostile package is *parsed* and then refused.
 	ApproveIfSilent bool `json:"approve_if_silent,omitempty"`
@@ -63,10 +63,10 @@ type Manifest struct {
 }
 
 type Package struct {
-	Manifest Manifest
-	Dir      string
-	Cert     string // canonical hash of the manifest when the check passes
-	Active   bool
+	Manifest    Manifest
+	Dir         string
+	Cert        string // canonical hash of the manifest when the check passes
+	Active      bool
 	ActivatedBy []string
 }
 
@@ -278,7 +278,7 @@ func (a *App) RunCheck(name, by string) (CheckResult, error) {
 		Action: "package.checked", ActorType: "human", ActorID: by,
 		Data: map[string]any{"package": name, "errors": res.Errors, "warnings": res.Warnings,
 			"certificate": res.Cert,
-			"stages": "schema + lint only (crash test, Cedar and SymCC stages: design, not built)"},
+			"stages":      "schema + lint only (crash test, Cedar and SymCC stages: design, not built)"},
 	})
 	return res, err
 }

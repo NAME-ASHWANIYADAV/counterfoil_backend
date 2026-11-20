@@ -28,7 +28,9 @@ chip says `rules`. Then resign — either plainly (*I wish to resign, my last wo
 should be* **today's date**; rules detect this, no model needed) or softly (*I feel it
 is time for me to move on…*; the agent catches it and stages the same card via
 `propose_resignation`). Either way a confirmation card appears — **the click is the
-formal tender**, never the model. Confirm.
+formal tender**, never the model. Confirm — you land on **My exit**, the leaver's own
+case room: a summary strip, an honest "what happens next" read from the step engine,
+the tracker, clocks, documents and passbook.
 
 Worth asking afterwards: *Where does my exit stand?* (`get_my_exit_status` reads the
 live case from receipts) and *How much will my settlement be?* — the honest answer
